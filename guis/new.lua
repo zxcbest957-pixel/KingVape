@@ -148,7 +148,8 @@ local function addBlur(parent, notif)
 	blur.Size = UDim2.new(1, 89, 1, 52)
 	blur.Position = UDim2.fromOffset(-48, -31)
 	blur.BackgroundTransparency = 1
-	blur.Image = getcustomasset('catrewrite/assets/new/'..(notif and 'blurnotif' or 'blur')..'.png')
+	local img = getcustomasset('catrewrite/assets/new/'..(notif and 'blurnotif' or 'blur')..'.png')
+	blur.Image = (typeof(img) == 'string' and img ~= '') and img or (notif and 'rbxassetid://16738720137' or 'rbxassetid://14898786664')
 	blur.ScaleType = Enum.ScaleType.Slice
 	blur.SliceCenter = Rect.new(52, 31, 261, 502)
 	blur.Parent = parent
@@ -323,9 +324,16 @@ end
 
 local function downloadFile(path, func)
 	if not isfile(path) then
-		local altPath = path:gsub('kingvape/', ''):gsub('catrewrite/', '')
-		if isfile(altPath) then
-			writefile(path, readfile(altPath))
+		local cleanPath = select(1, path:gsub('kingvape/', '')):gsub('catrewrite/', '')
+		if isfile(cleanPath) then
+			writefile(path, readfile(cleanPath))
+		else
+			local suc, res = pcall(function()
+				return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/main/'..cleanPath, true)
+			end)
+			if suc and res and res ~= '404: Not Found' then
+				writefile(path, res)
+			end
 		end
 	end
 	return (func or readfile)(path)
@@ -333,12 +341,12 @@ end
 
 getcustomasset = assetfunction and function(path)
 	local suc, res = pcall(downloadFile, path, assetfunction)
-	if suc then
+	if suc and res and res ~= '' then
 		return res
 	end
-	return getcustomassets[path] or getcustomassets[path:gsub('kingvape/', 'catrewrite/')] or ''
+	return getcustomassets[path] or getcustomassets[path:gsub('kingvape/', 'catrewrite/')] or getcustomassets[path:gsub('catrewrite/', 'kingvape/')] or ''
 end or function(path)
-	return getcustomassets[path] or getcustomassets[path:gsub('kingvape/', 'catrewrite/')] or ''
+	return getcustomassets[path] or getcustomassets[path:gsub('kingvape/', 'catrewrite/')] or getcustomassets[path:gsub('catrewrite/', 'kingvape/')] or ''
 end
 
 local function getTableSize(tab)
@@ -6241,7 +6249,7 @@ general:CreateButton({
 		if shared.VapeDeveloper then
 			loadstring(readfile('catrewrite/main.lua'), 'main')(license)
 		else
-			loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/init.lua', true))(license)
+			loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/main/init.lua', true))(license)
 		end
 	end,
 	Tooltip = 'This will set your profile to the default settings of Vape'
@@ -6275,7 +6283,7 @@ general:CreateButton({
 		if shared.VapeDeveloper then
 			loadstring(readfile('catrewrite/main.lua'), 'main')(license)
 		else
-			loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/init.lua', true))(license)
+			loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/main/init.lua', true))(license)
 		end
 	end,
 	Tooltip = 'Reloads vape for debugging purposes'
@@ -6392,7 +6400,7 @@ guipane:CreateDropdown({
 			if shared.VapeDeveloper then
 				loadstring(readfile('catrewrite/loader.lua'), 'loader')()
 			else
-				loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/loader.lua', true))()
+				loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/main/loader.lua', true))()
 			end
 		end
 	end,
