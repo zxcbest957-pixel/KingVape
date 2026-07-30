@@ -43,14 +43,24 @@ local function downloadFile(path, func)
 	return (func or readfile)(path)
 end
 
+local VERSION = "kingvape-1.0.1"
+
 for _, folder in {'kingvape', 'kingvape/games', 'kingvape/profiles', 'kingvape/assets', 'kingvape/libraries', 'kingvape/guis'} do
 	if not isfolder(folder) then
 		makefolder(folder)
 	end
 end
 
-if not isfile('kingvape/profiles/commit.txt') then
-	writefile('kingvape/profiles/commit.txt', 'main')
+local currentVer = isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt') or ''
+if currentVer ~= VERSION then
+	for _, file in {'kingvape/main.lua', 'kingvape/guis/new.lua', 'kingvape/guis/old.lua', 'kingvape/guis/rise.lua', 'catrewrite/guis/new.lua', 'catrewrite/main.lua'} do
+		if isfile(file) then
+			pcall(function()
+				if delfile then delfile(file) else writefile(file, '') end
+			end)
+		end
+	end
+	writefile('kingvape/profiles/commit.txt', VERSION)
 end
 
 downloader.Text = ''

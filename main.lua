@@ -97,7 +97,7 @@ if not isfolder('kingvape/assets/'..gui) then
 	makefolder('kingvape/assets/'..gui)
 end
 if not isfile('kingvape/profiles/commit.txt') then
-	writefile('kingvape/profiles/commit.txt', 'kingvape-v1.0')
+	writefile('kingvape/profiles/commit.txt', 'kingvape-1.0.1')
 end
 
 getgenv().used_init = true
