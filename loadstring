@@ -1,0 +1,2 @@
+-- King Vape Official Loader
+loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/main/init.lua'), 'init.lua')({})
