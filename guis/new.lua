@@ -2543,16 +2543,21 @@ function mainapi:CreateGUI()
 	addCorner(window)
 	makeDraggable(window)
 	local logo = Instance.new('TextLabel')
-	logo.Name = 'KingVapeLogo'
+	logo.Name = 'VapeLogo'
 	logo.Size = UDim2.fromOffset(200, 30)
 	logo.Position = UDim2.fromOffset(11, 3)
 	logo.BackgroundTransparency = 1
 	logo.Font = Enum.Font.FredokaOne
 	logo.RichText = true
-	logo.Text = '<font color="#FF3366">K</font><font color="#FF6633">I</font><font color="#FFCC00">N</font><font color="#33FF66">G</font><font color="#00E5FF">V</font><font color="#3399FF">A</font><font color="#9933FF">P</font><font color="#FF33CC">E</font>'
+	logo.Text = '<font color="#FF3366">K</font><font color="#FF6633">I</font><font color="#FFCC00">N</font><font color="#34C759">G</font><font color="#00C7BE">V</font><font color="#30B0C7">A</font><font color="#5856D6">P</font><font color="#AF52DE">E</font>'
 	logo.TextSize = 25
 	logo.TextXAlignment = Enum.TextXAlignment.Left
 	logo.Parent = window
+
+	local logov4 = Instance.new('Frame')
+	logov4.Name = 'V4Logo'
+	logov4.Visible = false
+	logov4.Parent = logo
 	local children = Instance.new('Frame')
 	children.Name = 'Children'
 	children.Size = UDim2.new(1, 0, 1, -33)
@@ -11112,7 +11117,9 @@ function mainapi:UpdateGUI(hue, sat, val, default)
 
 	for i, v in mainapi.Categories do
 		if i == 'Main' then
-			v.Object.VapeLogo.V4Logo.ImageColor3 = Color3.fromHSV(hue, sat, val)
+			if v.Object:FindFirstChild('VapeLogo') and v.Object.VapeLogo:FindFirstChild('V4Logo') and v.Object.VapeLogo.V4Logo:IsA('ImageLabel') then
+				v.Object.VapeLogo.V4Logo.ImageColor3 = Color3.fromHSV(hue, sat, val)
+			end
 			for _, button in v.Buttons do
 				if button.Enabled then
 					button.Object.TextColor3 = rainbow and Color3.fromHSV(mainapi:Color((hue - (button.Index * 0.025)) % 1)) or Color3.fromHSV(hue, sat, val)
