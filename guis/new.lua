@@ -3978,6 +3978,7 @@ function mainapi:CreateCategory(categorysettings)
 		pinbutton.BackgroundTransparency = 0.92
 		pinbutton.BorderSizePixel = 0
 		pinbutton.AutoButtonColor = false
+		pinbutton.Visible = false
 		pinbutton.Text = ''
 		pinbutton.Parent = modulebutton
 		addCorner(pinbutton, UDim.new(0, 4))
@@ -3993,6 +3994,7 @@ function mainapi:CreateCategory(categorysettings)
 		pinicon.ImageTransparency = 0.3
 		pinicon.Parent = pinbutton
 
+		moduleapi.PinButton = pinbutton
 		moduleapi.Favorite = false
 
 		local function saveFavorites()
@@ -4007,8 +4009,6 @@ function mainapi:CreateCategory(categorysettings)
 			end)
 		end
 
-		moduleapi.OriginalParent = children
-
 		function moduleapi:SetFavorite(fav, skipSave)
 			self.Favorite = fav
 			pinbutton.BackgroundColor3 = fav and Color3.fromRGB(255, 215, 0) or Color3.new(1, 1, 1)
@@ -4019,17 +4019,55 @@ function mainapi:CreateCategory(categorysettings)
 			if mainapi.Categories and mainapi.Categories.Favorites then
 				local favCategory = mainapi.Categories.Favorites
 				local favContainer = favCategory.Children
-				local targetParent = fav and favContainer or self.OriginalParent
+				if favContainer then
+					local existingFav = favContainer:FindFirstChild(self.Name..'_Fav')
+					if fav and not existingFav then
+						local favBtn = Instance.new('TextButton')
+						favBtn.Name = self.Name..'_Fav'
+						favBtn.Size = UDim2.fromOffset(220, 40)
+						favBtn.BackgroundColor3 = self.Enabled and color.Light(uipallet.Main, 0.02) or uipallet.Main
+						favBtn.BorderSizePixel = 0
+						favBtn.AutoButtonColor = false
+						favBtn.Text = '            '..self.Name
+						favBtn.TextXAlignment = Enum.TextXAlignment.Left
+						favBtn.TextColor3 = self.Enabled and uipallet.Text or color.Dark(uipallet.Text, 0.16)
+						favBtn.TextSize = 14
+						favBtn.FontFace = uipallet.Font
+						favBtn.Parent = favContainer
 
-				if targetParent then
-					modulebutton.Parent = targetParent
-					if modulechildren then
-						modulechildren.Parent = targetParent
+						addTooltip(favBtn, modulesettings.Tooltip)
+
+						local favDotsBtn = Instance.new('TextButton')
+						favDotsBtn.Name = 'Dots'
+						favDotsBtn.Size = UDim2.fromOffset(20, 40)
+						favDotsBtn.Position = UDim2.new(1, -20, 0, 0)
+						favDotsBtn.BackgroundTransparency = 1
+						favDotsBtn.Text = ''
+						favDotsBtn.Parent = favBtn
+
+						local favDots = Instance.new('ImageLabel')
+						favDots.Name = 'Dots'
+						favDots.Size = UDim2.fromOffset(3, 16)
+						favDots.Position = UDim2.fromOffset(4, 12)
+						favDots.BackgroundTransparency = 1
+						favDots.Image = getcustomasset('catsix/assets/new/dots.png')
+						favDots.ImageColor3 = color.Light(uipallet.Main, 0.37)
+						favDots.Parent = favDotsBtn
+
+						favBtn.MouseButton1Click:Connect(function()
+							self:Toggle()
+						end)
+
+						favDotsBtn.MouseButton1Click:Connect(function()
+							modulechildren.Visible = not modulechildren.Visible
+						end)
+					elseif not fav and existingFav then
+						existingFav:Destroy()
 					end
-				end
 
-				if fav and not favCategory.Expanded then
-					favCategory:Expand()
+					if fav and not favCategory.Expanded then
+						favCategory:Expand()
+					end
 				end
 			end
 
@@ -9926,11 +9964,14 @@ end))
 
 mainapi:CreateGUI()
 mainapi.Categories.Main:CreateDivider()
-mainapi:CreateCategory({
+local favCat = mainapi:CreateCategory({
 	Name = 'Favorites',
 	Icon = getcustomasset('catsix/assets/new/pin.png'),
 	Size = UDim2.fromOffset(14, 14)
 })
+if favCat and favCat.Button and favCat.Button.Object then
+	favCat.Button.Object.Visible = false
+end
 mainapi:CreateCategory({
 	Name = 'Combat',
 	Icon = getcustomasset('catsix/assets/new/combaticon.png'),
@@ -10351,6 +10392,27 @@ mainapi.GUIColor = mainapi.Categories.Main:CreateGUISlider({
 	Name = 'GUI Theme',
 	Function = function(h, s, v)
 		mainapi:UpdateGUI(h, s, v, true)
+	end
+})
+mainapi.FavoritesToggle = notifpane:CreateToggle({
+	Name = 'Favorites Category',
+	Tooltip = 'Enables the Favorites category window and Pin buttons on modules.',
+	Default = false,
+	Darker = true,
+	Function = function(enabled)
+		if mainapi.Categories and mainapi.Categories.Favorites then
+			if mainapi.Categories.Favorites.Button and mainapi.Categories.Favorites.Button.Object then
+				mainapi.Categories.Favorites.Button.Object.Visible = enabled
+			end
+			if mainapi.Categories.Favorites.Object then
+				mainapi.Categories.Favorites.Object.Visible = enabled and mainapi.Categories.Favorites.Expanded
+			end
+		end
+		for _, m in mainapi.Modules do
+			if m.PinButton then
+				m.PinButton.Visible = enabled
+			end
+		end
 	end
 })
 mainapi.Categories.Main:CreateBind()
