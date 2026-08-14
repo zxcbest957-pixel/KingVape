@@ -4033,11 +4033,6 @@ function mainapi:CreateCategory(categorysettings)
 					favBtn.MouseButton1Click:Connect(function()
 						self:Toggle()
 					end)
-
-					self:Clean(self.Toggle:Connect(function()
-						favBtn.TextColor3 = self.Enabled and Color3.fromRGB(255, 215, 0) or uipallet.Text
-						favBtn.BackgroundColor3 = self.Enabled and color.Light(uipallet.Main, 0.1) or color.Dark(uipallet.Main, 0.05)
-					end))
 				elseif not fav and existingFav then
 					existingFav:Destroy()
 				end
@@ -4114,6 +4109,14 @@ function mainapi:CreateCategory(categorysettings)
 			dots.ImageColor3 = self.Enabled and Color3.fromRGB(50, 50, 50) or color.Light(uipallet.Main, 0.37)
 			bindicon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 			bindtext.TextColor3 = color.Dark(uipallet.Text, 0.43)
+			if mainapi.Categories and mainapi.Categories.Favorites then
+				local favContainer = mainapi.Categories.Favorites.Children
+				local favBtn = favContainer:FindFirstChild(self.Name..'_Fav')
+				if favBtn then
+					favBtn.TextColor3 = self.Enabled and Color3.fromRGB(255, 215, 0) or uipallet.Text
+					favBtn.BackgroundColor3 = self.Enabled and color.Light(uipallet.Main, 0.1) or color.Dark(uipallet.Main, 0.05)
+				end
+			end
 			if not self.Enabled then
 				for _, v in self.Connections do
 					v:Disconnect()
