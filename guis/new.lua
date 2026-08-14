@@ -471,6 +471,12 @@ do
 		) or uipallet.Font
 		uipallet.FontSemiBold = Font.new(uipallet.Font.Family, Enum.FontWeight.SemiBold)
 	end
+	local savedFont = isfile('catsix/profiles/font.txt') and readfile('catsix/profiles/font.txt')
+	if savedFont and mainapi.CustomFonts and mainapi.CustomFonts[savedFont] then
+		uipallet.Font = mainapi.CustomFonts[savedFont].Font
+		uipallet.FontSemiBold = mainapi.CustomFonts[savedFont].FontSemiBold
+		mainapi.CurrentFont = savedFont
+	end
 	fontsize.Font = uipallet.Font
 end
 
@@ -11134,6 +11140,10 @@ function mainapi:SetFont(fontName)
 		uipallet.Font = fontData.Font
 		uipallet.FontSemiBold = fontData.FontSemiBold
 		fontsize.Font = uipallet.Font
+
+		pcall(function()
+			writefile('catsix/profiles/font.txt', fontName)
+		end)
 
 		if clickgui then
 			for _, v in clickgui:GetDescendants() do
