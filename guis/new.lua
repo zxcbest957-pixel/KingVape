@@ -3967,6 +3967,82 @@ function mainapi:CreateCategory(categorysettings)
 		dots.Image = getcustomasset('catsix/assets/new/dots.png')
 		dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		dots.Parent = dotsbutton
+
+		local pinbutton = Instance.new('TextButton')
+		pinbutton.Name = 'Pin'
+		pinbutton.Size = UDim2.fromOffset(22, 40)
+		pinbutton.Position = UDim2.new(1, -47, 0, 0)
+		pinbutton.BackgroundTransparency = 1
+		pinbutton.Text = ''
+		pinbutton.Parent = modulebutton
+		addTooltip(pinbutton, 'Pin to Favorites')
+
+		local pinicon = Instance.new('ImageLabel')
+		pinicon.Name = 'PinIcon'
+		pinicon.Size = UDim2.fromOffset(13, 13)
+		pinicon.Position = UDim2.fromOffset(4, 13)
+		pinicon.BackgroundTransparency = 1
+		pinicon.Image = getcustomasset('catsix/assets/new/pin.png')
+		pinicon.ImageColor3 = color.Light(uipallet.Main, 0.37)
+		pinicon.ImageTransparency = 0.6
+		pinicon.Parent = pinbutton
+
+		moduleapi.Favorite = false
+
+		local function saveFavorites()
+			local favs = {}
+			for _, m in mainapi.Modules do
+				if m.Favorite then
+					table.insert(favs, m.Name)
+				end
+			end
+			pcall(function()
+				writefile('catsix/profiles/favorites.txt', cloneref(game:GetService('HttpService')):JSONEncode(favs))
+			end)
+		end
+
+		function moduleapi:SetFavorite(fav, skipSave)
+			self.Favorite = fav
+			pinicon.ImageColor3 = fav and Color3.fromRGB(255, 215, 0) or color.Light(uipallet.Main, 0.37)
+			pinicon.ImageTransparency = fav and 0 or 0.6
+
+			if mainapi.Categories.Favorites then
+				local favContainer = mainapi.Categories.Favorites.Children
+				local existingFav = favContainer:FindFirstChild(self.Name..'_Fav')
+				if fav and not existingFav then
+					local favBtn = Instance.new('TextButton')
+					favBtn.Name = self.Name..'_Fav'
+					favBtn.Size = UDim2.fromOffset(210, 36)
+					favBtn.BackgroundColor3 = self.Enabled and color.Light(uipallet.Main, 0.1) or color.Dark(uipallet.Main, 0.05)
+					favBtn.Text = '   '..self.Name
+					favBtn.TextXAlignment = Enum.TextXAlignment.Left
+					favBtn.TextColor3 = self.Enabled and Color3.fromRGB(255, 215, 0) or uipallet.Text
+					favBtn.TextSize = 13
+					favBtn.FontFace = uipallet.Font
+					favBtn.Parent = favContainer
+					addCorner(favBtn, UDim.new(0, 6))
+
+					favBtn.MouseButton1Click:Connect(function()
+						self:Toggle()
+					end)
+
+					self:Clean(self.Toggle:Connect(function()
+						favBtn.TextColor3 = self.Enabled and Color3.fromRGB(255, 215, 0) or uipallet.Text
+						favBtn.BackgroundColor3 = self.Enabled and color.Light(uipallet.Main, 0.1) or color.Dark(uipallet.Main, 0.05)
+					end))
+				elseif not fav and existingFav then
+					existingFav:Destroy()
+				end
+			end
+
+			if not skipSave then
+				saveFavorites()
+			end
+		end
+
+		pinbutton.MouseButton1Click:Connect(function()
+			moduleapi:SetFavorite(not moduleapi.Favorite)
+		end)
 		modulechildren.Name = modulesettings.Name..'Children'
 		modulechildren.Size = UDim2.new(1, 0, 0, 0)
 		modulechildren.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
@@ -9852,6 +9928,11 @@ end))
 mainapi:CreateGUI()
 mainapi.Categories.Main:CreateDivider()
 mainapi:CreateCategory({
+	Name = 'Favorites',
+	Icon = getcustomasset('catsix/assets/new/pin.png'),
+	Size = UDim2.fromOffset(14, 14)
+})
+mainapi:CreateCategory({
 	Name = 'Combat',
 	Icon = getcustomasset('catsix/assets/new/combaticon.png'),
 	Size = UDim2.fromOffset(13, 14)
@@ -11384,5 +11465,20 @@ if not shared.updated then
 		mainapi:PromptPresets()
 	end))
 end
+
+task.spawn(function()
+	task.wait(0.6)
+	local suc, res = pcall(readfile, 'catsix/profiles/favorites.txt')
+	if suc and res and res ~= '' then
+		local favList = pcall(function() return httpService:JSONDecode(res) end) and httpService:JSONDecode(res) or {}
+		if typeof(favList) == 'table' then
+			for _, favName in favList do
+				if mainapi.Modules[favName] and mainapi.Modules[favName].SetFavorite then
+					mainapi.Modules[favName]:SetFavorite(true, true)
+				end
+			end
+		end
+	end
+end)
 
 return mainapi
