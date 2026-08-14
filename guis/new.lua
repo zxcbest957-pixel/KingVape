@@ -3654,7 +3654,7 @@ function mainapi:CreateGUI()
 
 		task.spawn(function()
 			tooltip.Text = 'Copied!'
-			setclipboard('https://discord.gg/VZEQJxMSnG')
+			setclipboard('https://discord.gg/mypvp')
 		end)
 	end)
 	settingsbutton.MouseEnter:Connect(function()
