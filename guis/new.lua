@@ -10268,6 +10268,7 @@ mainapi.GUIColor = mainapi.Categories.Main:CreateGUISlider({
 	end
 })
 mainapi.Categories.Main:CreateBind()
+mainapi.Categories.Main:CreateFontSelector()
 
 --[[
 	Text GUI
