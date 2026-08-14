@@ -11135,11 +11135,11 @@ function mainapi:SetFont(fontName)
 		uipallet.FontSemiBold = fontData.FontSemiBold
 		fontsize.Font = uipallet.Font
 
-		for _, category in self.Categories do
-			if category.Buttons then
-				for _, button in category.Buttons do
-					if button.Object then
-						button.Object.FontFace = uipallet.Font
+		if clickgui then
+			for _, v in clickgui:GetDescendants() do
+				if v:IsA('TextLabel') or v:IsA('TextButton') or v:IsA('TextBox') then
+					if v.Name ~= 'KingVapeLogo' and v.Name ~= 'VapeLogo' then
+						v.FontFace = uipallet.Font
 					end
 				end
 			end
