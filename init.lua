@@ -89,7 +89,6 @@ writefile('catsix/profiles/commit.txt', 'main')
 			return installed
 		end
 	end
-end
 
 downloader.Text = ''
 return loadstring(downloadFile('catsix/main.lua'), 'main')(license)
