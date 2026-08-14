@@ -2,9 +2,9 @@ local license = ...
 local mainapi = {
 	Categories = {},
 	GUIColor = {
-		Hue = 0.46,
-		Sat = 0.96,
-		Value = 0.52
+		Hue = 0.12,
+		Sat = 0.95,
+		Value = 1.0
 	},
 	HeldKeybinds = {},
 	Keybind = {'RightShift'},
@@ -2542,21 +2542,17 @@ function mainapi:CreateGUI()
 	addBlur(window)
 	addCorner(window)
 	makeDraggable(window)
-	local logo = Instance.new('ImageLabel')
-	logo.Name = 'VapeLogo'
-	logo.Size = UDim2.fromOffset(62, 18)
-	logo.Position = UDim2.fromOffset(11, 10)
+	local logo = Instance.new('TextLabel')
+	logo.Name = 'KingVapeLogo'
+	logo.Size = UDim2.fromOffset(130, 24)
+	logo.Position = UDim2.fromOffset(11, 7)
 	logo.BackgroundTransparency = 1
-	logo.Image = getcustomasset('catsix/assets/new/guivape.png')
-	logo.ImageColor3 = select(3, uipallet.Main:ToHSV()) > 0.5 and uipallet.Text or Color3.new(1, 1, 1)
+	logo.Font = Enum.Font.GothamBold
+	logo.Text = '👑 KINGVAPE'
+	logo.TextColor3 = Color3.fromRGB(255, 215, 0)
+	logo.TextSize = 16
+	logo.TextXAlignment = Enum.TextXAlignment.Left
 	logo.Parent = window
-	local logov4 = Instance.new('ImageLabel')
-	logov4.Name = 'V4Logo'
-	logov4.Size = UDim2.fromOffset(28, 16)
-	logov4.Position = UDim2.new(1, 1, 0, 1)
-	logov4.BackgroundTransparency = 1
-	logov4.Image = getcustomasset('catsix/assets/new/guiv4.png')
-	logov4.Parent = logo
 	local children = Instance.new('Frame')
 	children.Name = 'Children'
 	children.Size = UDim2.new(1, 0, 1, -33)
