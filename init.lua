@@ -51,6 +51,9 @@ end
 if isfile('catsix/guis/new.lua') then
 	pcall(delfile, 'catsix/guis/new.lua')
 end
+if isfile('catsix/games/universal.lua') then
+	pcall(delfile, 'catsix/games/universal.lua')
+end
 
 for _, folder in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 'catsix/libraries', 'catsix/guis'} do
 	if not isfolder(folder) then
