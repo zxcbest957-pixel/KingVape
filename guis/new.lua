@@ -4007,6 +4007,8 @@ function mainapi:CreateCategory(categorysettings)
 			end)
 		end
 
+		moduleapi.OriginalParent = children
+
 		function moduleapi:SetFavorite(fav, skipSave)
 			self.Favorite = fav
 			pinbutton.BackgroundColor3 = fav and Color3.fromRGB(255, 215, 0) or Color3.new(1, 1, 1)
@@ -4017,31 +4019,17 @@ function mainapi:CreateCategory(categorysettings)
 			if mainapi.Categories and mainapi.Categories.Favorites then
 				local favCategory = mainapi.Categories.Favorites
 				local favContainer = favCategory.Children
-				if favContainer then
-					local existingFav = favContainer:FindFirstChild(self.Name..'_Fav')
-					if fav and not existingFav then
-						local favBtn = Instance.new('TextButton')
-						favBtn.Name = self.Name..'_Fav'
-						favBtn.Size = UDim2.fromOffset(210, 36)
-						favBtn.BackgroundColor3 = self.Enabled and color.Light(uipallet.Main, 0.1) or color.Dark(uipallet.Main, 0.05)
-						favBtn.Text = '   '..self.Name
-						favBtn.TextXAlignment = Enum.TextXAlignment.Left
-						favBtn.TextColor3 = self.Enabled and Color3.fromRGB(255, 215, 0) or uipallet.Text
-						favBtn.TextSize = 13
-						favBtn.FontFace = uipallet.Font
-						favBtn.Parent = favContainer
-						addCorner(favBtn, UDim.new(0, 6))
+				local targetParent = fav and favContainer or self.OriginalParent
 
-						favBtn.MouseButton1Click:Connect(function()
-							self:Toggle()
-						end)
-					elseif not fav and existingFav then
-						existingFav:Destroy()
+				if targetParent then
+					modulebutton.Parent = targetParent
+					if modulechildren then
+						modulechildren.Parent = targetParent
 					end
+				end
 
-					if fav and not favCategory.Expanded then
-						favCategory:Expand()
-					end
+				if fav and not favCategory.Expanded then
+					favCategory:Expand()
 				end
 			end
 
@@ -4116,14 +4104,6 @@ function mainapi:CreateCategory(categorysettings)
 			dots.ImageColor3 = self.Enabled and Color3.fromRGB(50, 50, 50) or color.Light(uipallet.Main, 0.37)
 			bindicon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 			bindtext.TextColor3 = color.Dark(uipallet.Text, 0.43)
-			if mainapi.Categories and mainapi.Categories.Favorites then
-				local favContainer = mainapi.Categories.Favorites.Children
-				local favBtn = favContainer:FindFirstChild(self.Name..'_Fav')
-				if favBtn then
-					favBtn.TextColor3 = self.Enabled and Color3.fromRGB(255, 215, 0) or uipallet.Text
-					favBtn.BackgroundColor3 = self.Enabled and color.Light(uipallet.Main, 0.1) or color.Dark(uipallet.Main, 0.05)
-				end
-			end
 			if not self.Enabled then
 				for _, v in self.Connections do
 					v:Disconnect()
