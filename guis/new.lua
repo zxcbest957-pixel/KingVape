@@ -4014,27 +4014,34 @@ function mainapi:CreateCategory(categorysettings)
 			pinicon.ImageColor3 = fav and Color3.fromRGB(20, 20, 20) or color.Dark(uipallet.Text, 0.43)
 			pinicon.ImageTransparency = fav and 0 or 0.3
 
-			if mainapi.Categories.Favorites then
-				local favContainer = mainapi.Categories.Favorites.Children
-				local existingFav = favContainer:FindFirstChild(self.Name..'_Fav')
-				if fav and not existingFav then
-					local favBtn = Instance.new('TextButton')
-					favBtn.Name = self.Name..'_Fav'
-					favBtn.Size = UDim2.fromOffset(210, 36)
-					favBtn.BackgroundColor3 = self.Enabled and color.Light(uipallet.Main, 0.1) or color.Dark(uipallet.Main, 0.05)
-					favBtn.Text = '   '..self.Name
-					favBtn.TextXAlignment = Enum.TextXAlignment.Left
-					favBtn.TextColor3 = self.Enabled and Color3.fromRGB(255, 215, 0) or uipallet.Text
-					favBtn.TextSize = 13
-					favBtn.FontFace = uipallet.Font
-					favBtn.Parent = favContainer
-					addCorner(favBtn, UDim.new(0, 6))
+			if mainapi.Categories and mainapi.Categories.Favorites then
+				local favCategory = mainapi.Categories.Favorites
+				local favContainer = favCategory.Children
+				if favContainer then
+					local existingFav = favContainer:FindFirstChild(self.Name..'_Fav')
+					if fav and not existingFav then
+						local favBtn = Instance.new('TextButton')
+						favBtn.Name = self.Name..'_Fav'
+						favBtn.Size = UDim2.fromOffset(210, 36)
+						favBtn.BackgroundColor3 = self.Enabled and color.Light(uipallet.Main, 0.1) or color.Dark(uipallet.Main, 0.05)
+						favBtn.Text = '   '..self.Name
+						favBtn.TextXAlignment = Enum.TextXAlignment.Left
+						favBtn.TextColor3 = self.Enabled and Color3.fromRGB(255, 215, 0) or uipallet.Text
+						favBtn.TextSize = 13
+						favBtn.FontFace = uipallet.Font
+						favBtn.Parent = favContainer
+						addCorner(favBtn, UDim.new(0, 6))
 
-					favBtn.MouseButton1Click:Connect(function()
-						self:Toggle()
-					end)
-				elseif not fav and existingFav then
-					existingFav:Destroy()
+						favBtn.MouseButton1Click:Connect(function()
+							self:Toggle()
+						end)
+					elseif not fav and existingFav then
+						existingFav:Destroy()
+					end
+
+					if fav and not favCategory.Expanded then
+						favCategory:Expand()
+					end
 				end
 			end
 
@@ -4316,6 +4323,7 @@ function mainapi:CreateCategory(categorysettings)
 	})
 
 	categoryapi.Object = window
+	categoryapi.Children = children
 	self.Categories[categorysettings.Name] = categoryapi
 
 	return categoryapi
