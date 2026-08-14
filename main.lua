@@ -36,19 +36,26 @@ local playersService = cloneref(game:GetService('Players'))
 local httpService = cloneref(game:GetService("HttpService"))
 
 local function downloadFile(path, func)
-	if not isfile(path) then
+	local content
+	if isfile(path) then
+		pcall(function() content = readfile(path) end)
+	end
+	if not content or content == '' or content == '404: Not Found' then
 		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..readfile('catsix/profiles/commit.txt')..'/'..select(1, path:gsub('catsix/', '')), true)
+			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+			if not commit or commit == '' then commit = 'main' end
+			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/'..select(1, path:gsub('catsix/', '')), true)
 		end)
-		if not suc or res == '404: Not Found' then
-			error(res)
+		if not suc or res == '404: Not Found' or not res or res == '' then
+			error(res or 'Failed to download '..tostring(path))
 		end
 		if path:find('.lua') then
 			res = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..res
 		end
-		writefile(path, res)
+		pcall(writefile, path, res)
+		content = res
 	end
-	return (func or readfile)(path)
+	return (func or function() return content end)(path)
 end
 
 local function finishLoading()
