@@ -316,7 +316,7 @@ local function downloadFile(path, func)
 	if not isfile(path) then
 		createDownloader(path)
 		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catsix/profiles/commit.txt')..'/'..select(1, path:gsub('catsix/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..readfile('catsix/profiles/commit.txt')..'/'..select(1, path:gsub('catsix/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
 			error(res)
@@ -7077,7 +7077,7 @@ local function installPresets()
 	end
 
 	local suc, req = pcall(request, {
-		Url = 'https://api.github.com/repos/MaxlaserTech/CatV6/contents/profiles',
+		Url = 'https://api.github.com/repos/zxcbest957-pixel/KingVape/contents/profiles',
 		Method = 'GET'
 	})
 	if not suc or not req or req.StatusCode ~= 200 then return false end
@@ -7093,7 +7093,7 @@ local function installPresets()
 		if v.type == 'file' then
 			local path = ({v.path:gsub(' ', '%%20')})[1]
 			local got, res = pcall(function()
-				return game:HttpGet(`https://raw.githubusercontent.com/MaxlaserTech/CatV6/{commit}/{path}`, true)
+				return game:HttpGet(`https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/{commit}/{path}`, true)
 			end)
 			if got and type(res) == 'string' and res ~= '' and res ~= '404: Not Found' then
 				writefile(`catsix/{path}`, res)
@@ -9933,7 +9933,7 @@ Profiles:CreateButton({
 		if shared.VapeDeveloper then
 			loadstring(readfile('catsix/init.lua'), 'init')(license)
 		else
-			loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catsix/profiles/commit.txt')..'/init.lua', true))(license)
+			loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..readfile('catsix/profiles/commit.txt')..'/init.lua', true))(license)
 		end
 	end,
 	Tooltip = 'This will set your profile to the default settings of Cat Vape'
@@ -9994,7 +9994,7 @@ general:CreateButton({
 		if shared.VapeDeveloper then
 			loadstring(readfile('catsix/init.lua'), 'init')()
 		else
-			loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catsix/profiles/commit.txt')..'/init.lua', true))()
+			loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..readfile('catsix/profiles/commit.txt')..'/init.lua', true))()
 		end
 	end,
 	Tooltip = 'Reloads vape for debugging purposes'
@@ -10117,7 +10117,7 @@ guipane:CreateDropdown({
 			if shared.VapeDeveloper then
 				loadstring(readfile('catsix/init.lua'), 'loader')()
 			else
-				loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catsix/profiles/commit.txt')..'/init.lua', true))()
+				loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..readfile('catsix/profiles/commit.txt')..'/init.lua', true))()
 			end
 		end
 	end,

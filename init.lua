@@ -59,7 +59,7 @@ if not shared.VapeDeveloper then
 	local commit = license.Commit or nil
 	if not commit then
 		local _, subbed = pcall(function() 
-			return game:HttpGet('https://github.com/MaxlaserTech/CatV6') 
+			return game:HttpGet('https://github.com/zxcbest957-pixel/KingVape') 
 		end)
 		commit = subbed:find('currentOid')
 		commit = commit and subbed:sub(commit + 13, commit + 52) or nil
@@ -78,7 +78,7 @@ if not shared.VapeDeveloper then
 	if shared.updated or #listfiles('catsix/profiles') < 4 then
 		shared.VapePresetInstall = function()
 			local suc, req = pcall(request, {
-				Url = 'https://api.github.com/repos/MaxlaserTech/CatV6/contents/profiles',
+				Url = 'https://api.github.com/repos/zxcbest957-pixel/KingVape/contents/profiles',
 				Method = 'GET'
 			})
 			if not suc or req.StatusCode ~= 200 then return false end
