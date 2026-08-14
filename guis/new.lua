@@ -3906,7 +3906,7 @@ function mainapi:CreateCategory(categorysettings)
 		addTooltip(bind, 'Click to bind')
 		bind.Name = 'Bind'
 		bind.Size = UDim2.fromOffset(20, 21)
-		bind.Position = UDim2.new(1, -36, 0, 9)
+		bind.Position = UDim2.new(1, -24, 0, 9)
 		bind.AnchorPoint = Vector2.new(1, 0)
 		bind.BackgroundColor3 = Color3.new(1, 1, 1)
 		bind.BackgroundTransparency = 0.92
@@ -3952,10 +3952,11 @@ function mainapi:CreateCategory(categorysettings)
 		bindcovertext.FontFace = uipallet.Font
 		bindcovertext.Parent = bindcover
 		bind.Parent = modulebutton
+
 		local dotsbutton = Instance.new('TextButton')
 		dotsbutton.Name = 'Dots'
-		dotsbutton.Size = UDim2.fromOffset(25, 40)
-		dotsbutton.Position = UDim2.new(1, -25, 0, 0)
+		dotsbutton.Size = UDim2.fromOffset(20, 40)
+		dotsbutton.Position = UDim2.new(1, -20, 0, 0)
 		dotsbutton.BackgroundTransparency = 1
 		dotsbutton.Text = ''
 		dotsbutton.Parent = modulebutton
@@ -3970,21 +3971,26 @@ function mainapi:CreateCategory(categorysettings)
 
 		local pinbutton = Instance.new('TextButton')
 		pinbutton.Name = 'Pin'
-		pinbutton.Size = UDim2.fromOffset(22, 40)
-		pinbutton.Position = UDim2.new(1, -47, 0, 0)
-		pinbutton.BackgroundTransparency = 1
+		pinbutton.Size = UDim2.fromOffset(20, 21)
+		pinbutton.Position = UDim2.new(1, -48, 0, 9)
+		pinbutton.AnchorPoint = Vector2.new(1, 0)
+		pinbutton.BackgroundColor3 = Color3.new(1, 1, 1)
+		pinbutton.BackgroundTransparency = 0.92
+		pinbutton.BorderSizePixel = 0
+		pinbutton.AutoButtonColor = false
 		pinbutton.Text = ''
 		pinbutton.Parent = modulebutton
+		addCorner(pinbutton, UDim.new(0, 4))
 		addTooltip(pinbutton, 'Pin to Favorites')
 
 		local pinicon = Instance.new('ImageLabel')
 		pinicon.Name = 'PinIcon'
-		pinicon.Size = UDim2.fromOffset(13, 13)
-		pinicon.Position = UDim2.fromOffset(4, 13)
+		pinicon.Size = UDim2.fromOffset(11, 11)
+		pinicon.Position = UDim2.new(0.5, -5, 0, 5)
 		pinicon.BackgroundTransparency = 1
 		pinicon.Image = getcustomasset('catsix/assets/new/pin.png')
-		pinicon.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		pinicon.ImageTransparency = 0.6
+		pinicon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
+		pinicon.ImageTransparency = 0.3
 		pinicon.Parent = pinbutton
 
 		moduleapi.Favorite = false
@@ -4003,8 +4009,10 @@ function mainapi:CreateCategory(categorysettings)
 
 		function moduleapi:SetFavorite(fav, skipSave)
 			self.Favorite = fav
-			pinicon.ImageColor3 = fav and Color3.fromRGB(255, 215, 0) or color.Light(uipallet.Main, 0.37)
-			pinicon.ImageTransparency = fav and 0 or 0.6
+			pinbutton.BackgroundColor3 = fav and Color3.fromRGB(255, 215, 0) or Color3.new(1, 1, 1)
+			pinbutton.BackgroundTransparency = fav and 0.15 or 0.92
+			pinicon.ImageColor3 = fav and Color3.fromRGB(20, 20, 20) or color.Dark(uipallet.Text, 0.43)
+			pinicon.ImageTransparency = fav and 0 or 0.3
 
 			if mainapi.Categories.Favorites then
 				local favContainer = mainapi.Categories.Favorites.Children
