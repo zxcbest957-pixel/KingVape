@@ -2544,13 +2544,13 @@ function mainapi:CreateGUI()
 	makeDraggable(window)
 	local logo = Instance.new('TextLabel')
 	logo.Name = 'KingVapeLogo'
-	logo.Size = UDim2.fromOffset(130, 24)
-	logo.Position = UDim2.fromOffset(11, 7)
+	logo.Size = UDim2.fromOffset(150, 24)
+	logo.Position = UDim2.fromOffset(11, 6)
 	logo.BackgroundTransparency = 1
-	logo.Font = Enum.Font.GothamBold
-	logo.Text = '👑 KINGVAPE'
-	logo.TextColor3 = Color3.fromRGB(255, 215, 0)
-	logo.TextSize = 16
+	logo.Font = Enum.Font.FredokaOne
+	logo.RichText = true
+	logo.Text = '<font color="#FF3366">K</font><font color="#FF6633">I</font><font color="#FFCC00">N</font><font color="#33FF66">G</font><font color="#00E5FF">V</font><font color="#3399FF">A</font><font color="#9933FF">P</font><font color="#FF33CC">E</font>'
+	logo.TextSize = 19
 	logo.TextXAlignment = Enum.TextXAlignment.Left
 	logo.Parent = window
 	local children = Instance.new('Frame')
