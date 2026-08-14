@@ -127,18 +127,9 @@ end
 
 if not shared.VapeIndependent then
 	loadstring(downloadFile('catsix/games/universal.lua'), 'universal')(license)
-	if isfile('catsix/games/'..game.PlaceId..'.lua') then
-		loadstring(readfile('catsix/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(license)
-	else
-		if not shared.VapeDeveloper then
-			local suc, res = pcall(function()
-				return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..readfile('catsix/profiles/commit.txt')..'/games/'..game.PlaceId..'.lua', true)
-			end)
-			if suc and res ~= '404: Not Found' then
-				loadstring(downloadFile('catsix/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(license)
-			end
-		end
-	end
+	pcall(function()
+		loadstring(downloadFile('catsix/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(license)
+	end)
 	loadstring(downloadFile('catsix/libraries/premium.lua'), 'premium')(license)
 	finishLoading()
 else
