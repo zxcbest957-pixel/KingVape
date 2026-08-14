@@ -10428,8 +10428,11 @@ task.spawn(function()
 
 	local BlockBreakVisuals = {Enabled = false}
 	local Mode = {Value = 'Both'}
-	local ShowProgress = {Enabled = true}
+	local ColorMode = {Value = 'Rainbow'}
+	local CustomColor = {Hue = 0.5, Sat = 1, Value = 1}
+	local ShowProgress = {Enabled = false}
 	local ParticleBurst = {Enabled = true}
+	local RequireTool = {Enabled = true}
 	local GlowSpeed = {Value = 2}
 
 	local currentTarget = nil
@@ -10455,7 +10458,7 @@ task.spawn(function()
 			ring.Anchored = true
 			ring.CanCollide = false
 			ring.Material = Enum.Material.Neon
-			ring.Color = Color3.fromHSV((os.clock() * GlowSpeed.Value) % 1, 0.9, 1)
+			ring.Color = ColorMode.Value == 'Custom' and Color3.fromHSV(CustomColor.Hue, CustomColor.Sat, CustomColor.Value) or Color3.fromHSV((os.clock() * GlowSpeed.Value) % 1, 0.9, 1)
 			ring.Parent = workspace
 
 			local mesh = Instance.new('SpecialMesh')
@@ -10480,7 +10483,7 @@ task.spawn(function()
 	if mainapi and mainapi.Categories and mainapi.Categories.Render then
 		BlockBreakVisuals = mainapi.Categories.Render:CreateModule({
 			Name = 'BlockBreakVisuals',
-			Tooltip = 'Renders smooth shifting rainbow glow, 3D progress bar & particle shockwave on broken blocks.',
+			Tooltip = 'Renders custom color / rainbow glow, 3D progress bar & particle shockwave on broken blocks.',
 			Function = function(callback)
 				if not callback then
 					cleanupVisuals()
@@ -10488,7 +10491,10 @@ task.spawn(function()
 					currentProgress = 0
 				else
 					BlockBreakVisuals:Clean(runService.RenderStepped:Connect(function()
-						if not inputService:IsMouseButtonPressed(0) then
+						local tool = lplr.Character and lplr.Character:FindFirstChildWhichIsA('Tool')
+						local hasTool = not RequireTool.Enabled or (tool ~= nil)
+
+						if not inputService:IsMouseButtonPressed(0) or not hasTool then
 							if currentTarget and currentProgress > 0.8 then
 								spawnBreakParticle(currentTarget.CFrame)
 							end
@@ -10506,8 +10512,8 @@ task.spawn(function()
 							rayParams.FilterType = Enum.RaycastFilterType.Exclude
 						end
 
-						local res = workspace:Raycast(ray.Origin, ray.Direction * 30, rayParams)
-						if res and res.Instance and res.Instance:IsA('BasePart') and res.Instance.Anchored then
+						local res = workspace:Raycast(ray.Origin, ray.Direction * 20, rayParams)
+						if res and res.Instance and res.Instance:IsA('BasePart') and res.Instance.Anchored and res.Distance <= 18 then
 							local target = res.Instance
 							if target ~= currentTarget then
 								cleanupVisuals()
@@ -10516,10 +10522,15 @@ task.spawn(function()
 							end
 
 							currentProgress = math.clamp(currentProgress + (0.02 * (GlowSpeed.Value / 2)), 0, 1)
-							local hue = (os.clock() * GlowSpeed.Value * 0.3) % 1
-							local shiftColor = Color3.fromHSV(hue, 0.85, 1)
+							local shiftColor
+							if ColorMode.Value == 'Custom' then
+								shiftColor = Color3.fromHSV(CustomColor.Hue, CustomColor.Sat, CustomColor.Value)
+							else
+								local hue = (os.clock() * GlowSpeed.Value * 0.3) % 1
+								shiftColor = Color3.fromHSV(hue, 0.85, 1)
+							end
 
-							if Mode.Value == 'Rainbow Glow' or Mode.Value == 'Both' then
+							if Mode.Value == 'Glow' or Mode.Value == 'Both' then
 								if not highlightObj or highlightObj.Parent ~= target then
 									if highlightObj then highlightObj:Destroy() end
 									highlightObj = Instance.new('Highlight')
@@ -10529,7 +10540,7 @@ task.spawn(function()
 									highlightObj.Parent = target
 								end
 								highlightObj.FillColor = shiftColor
-								highlightObj.OutlineColor = Color3.fromHSV((hue + 0.2) % 1, 0.9, 1)
+								highlightObj.OutlineColor = shiftColor
 							end
 
 							if Mode.Value == 'Selection Box' or Mode.Value == 'Both' then
@@ -10542,7 +10553,7 @@ task.spawn(function()
 									selectionBox.Parent = target
 								end
 								selectionBox.Color3 = shiftColor
-								selectionBox.SurfaceColor3 = Color3.fromHSV((hue + 0.1) % 1, 0.8, 1)
+								selectionBox.SurfaceColor3 = shiftColor
 							end
 
 							if ShowProgress.Enabled then
@@ -10591,6 +10602,9 @@ task.spawn(function()
 								if pctText then
 									pctText.Text = math.floor(currentProgress * 100)..'%'
 								end
+							elseif billboardGui then
+								billboardGui:Destroy()
+								billboardGui = nil
 							end
 						else
 							if currentTarget and currentProgress > 0.8 then
@@ -10607,13 +10621,38 @@ task.spawn(function()
 
 		Mode = BlockBreakVisuals:CreateDropdown({
 			Name = 'Visual Mode',
-			List = {'Rainbow Glow', 'Selection Box', 'Both'},
+			List = {'Glow', 'Selection Box', 'Both'},
 			Default = 'Both'
 		})
-		ShowProgress = BlockBreakVisuals:CreateToggle({
-			Name = 'Progress Meter',
+		ColorMode = BlockBreakVisuals:CreateDropdown({
+			Name = 'Color Mode',
+			List = {'Rainbow', 'Custom'},
+			Default = 'Rainbow',
+			Function = function(val)
+				if CustomColor and CustomColor.Object then
+					CustomColor.Object.Visible = val == 'Custom'
+				end
+			end
+		})
+		CustomColor = BlockBreakVisuals:CreateColorSlider({
+			Name = 'Custom Color',
+			Function = function(h, s, v)
+				CustomColor.Hue = h
+				CustomColor.Sat = s
+				CustomColor.Value = v
+			end,
+			Darker = true,
+			Visible = false
+		})
+		RequireTool = BlockBreakVisuals:CreateToggle({
+			Name = 'Require Tool In Hand',
 			Default = true,
-			Tooltip = 'Displays smooth 3D progress percentage bar above block'
+			Tooltip = 'Only shows break effect when holding a pickaxe/tool'
+		})
+		ShowProgress = BlockBreakVisuals:CreateToggle({
+			Name = 'Show Progress Bar',
+			Default = false,
+			Tooltip = 'Displays 3D progress percentage bar above block'
 		})
 		ParticleBurst = BlockBreakVisuals:CreateToggle({
 			Name = 'Particle Shockwave',
