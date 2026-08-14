@@ -19339,7 +19339,7 @@ run(function()
 		end)
 	end
 
-	local category = (vape.Categories and vape.Categories.Render) or vape.Render
+	local category = (vape.Categories and vape.Categories.Render) or vape.Render or vape.World or vape.Minigames
 	if not category then return end
 
 	BlockBreakVisuals = category:CreateModule({

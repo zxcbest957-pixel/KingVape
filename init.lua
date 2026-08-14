@@ -51,8 +51,10 @@ end
 if isfile('catsix/guis/new.lua') then
 	pcall(delfile, 'catsix/guis/new.lua')
 end
-if isfile('catsix/games/universal.lua') then
-	pcall(delfile, 'catsix/games/universal.lua')
+if isfolder('catsix/games') then
+	for _, v in listfiles('catsix/games') do
+		pcall(delfile, v)
+	end
 end
 
 for _, folder in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 'catsix/libraries', 'catsix/guis'} do
