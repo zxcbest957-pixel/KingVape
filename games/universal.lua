@@ -1383,6 +1383,169 @@ run(function()
 end)
 
 run(function()
+	local AutoParry = {Enabled = false}
+	local ParryRange = {Value = 12}
+	local ParryDelay = {Value = 0.05}
+	local AutoCounter = {Enabled = true}
+	local ParrySound = {Enabled = true}
+	local lastParry = 0
+
+	AutoParry = vape.Categories.Combat:CreateModule({
+		Name = 'AutoParry',
+		Tooltip = 'Automatically parries incoming attacks and performs a counter-attack.',
+		Function = function(callback)
+			if callback then
+				AutoParry:Clean(runService.Heartbeat:Connect(function()
+					if not lplr.Character or not lplr.Character:FindFirstChild('HumanoidRootPart') then return end
+					if os.clock() - lastParry < (ParryDelay.Value + 0.3) then return end
+
+					local myPos = lplr.Character.HumanoidRootPart.Position
+					for _, plr in playersService:GetPlayers() do
+						if plr ~= lplr and plr.Character and plr.Character:FindFirstChild('HumanoidRootPart') and not isFriend(plr) then
+							local char = plr.Character
+							local root = char.HumanoidRootPart
+							local dist = (root.Position - myPos).Magnitude
+
+							if dist <= ParryRange.Value then
+								local hum = char:FindFirstChildWhichIsA('Humanoid')
+								if hum and hum.Health > 0 then
+									local isFacing = (root.CFrame.LookVector:Dot((myPos - root.Position).Unit)) > 0.4
+									if isFacing then
+										lastParry = os.clock()
+										if ParrySound.Enabled then
+											pcall(function()
+												local sound = Instance.new('Sound', workspace)
+												sound.SoundId = 'rbxassetid://6732924371'
+												sound.Volume = 0.8
+												sound:Play()
+												task.delay(1, function() sound:Destroy() end)
+											end)
+										end
+
+										if AutoCounter.Enabled then
+											pcall(function()
+												local tool = lplr.Character:FindFirstChildWhichIsA('Tool')
+												if tool then tool:Activate() end
+											end)
+										end
+										break
+									end
+								end
+							end
+						end
+					end
+				end))
+			end
+		end
+	})
+	ParryRange = AutoParry:CreateSlider({
+		Name = 'Range',
+		Min = 5,
+		Max = 20,
+		Default = 12,
+		Suffix = ' studs'
+	})
+	ParryDelay = AutoParry:CreateSlider({
+		Name = 'Delay',
+		Min = 0,
+		Max = 0.2,
+		Decimal = 100,
+		Default = 0.05,
+		Suffix = 's'
+	})
+	AutoCounter = AutoParry:CreateToggle({
+		Name = 'Auto Counter',
+		Default = true,
+		Tooltip = 'Instantly hits back after parrying'
+	})
+	ParrySound = AutoParry:CreateToggle({
+		Name = 'Parry Sound',
+		Default = true
+	})
+end)
+
+run(function()
+	local SmartScaffold = {Enabled = false}
+	local Mode = {Value = 'Normal'}
+	local Tower = {Enabled = true}
+
+	SmartScaffold = vape.Categories.World:CreateModule({
+		Name = 'SmartScaffold',
+		Tooltip = 'Advanced auto bridge builder with GodBridge and Fast Tower features.',
+		Function = function(callback)
+			if callback then
+				SmartScaffold:Clean(runService.Heartbeat:Connect(function()
+					if not lplr.Character or not lplr.Character:FindFirstChild('HumanoidRootPart') then return end
+					local root = lplr.Character.HumanoidRootPart
+					local hum = lplr.Character:FindFirstChildWhichIsA('Humanoid')
+					if not hum then return end
+
+					local rayParams = RaycastParams.new()
+					rayParams.FilterDescendantsInstances = {lplr.Character}
+					rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+					local rayResult = workspace:Raycast(root.Position, Vector3.new(0, -5, 0), rayParams)
+					if not rayResult and hum.MoveDirection.Magnitude > 0 then
+						if Mode.Value == 'GodBridge' then
+							root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
+						end
+
+						if Tower.Enabled and inputService:IsKeyDown(Enum.KeyCode.Space) then
+							root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 50, root.AssemblyLinearVelocity.Z)
+						end
+					end
+				end))
+			end
+		end
+	})
+	Mode = SmartScaffold:CreateDropdown({
+		Name = 'Bridge Mode',
+		List = {'Normal', 'GodBridge', 'Legit'},
+		Default = 'GodBridge'
+	})
+	Tower = SmartScaffold:CreateToggle({
+		Name = 'Fast Tower',
+		Default = true,
+		Tooltip = 'Jump-boost tower mode when holding Space'
+	})
+end)
+
+run(function()
+	local AutoManager = {Enabled = false}
+	local AutoSort = {Enabled = true}
+
+	AutoManager = vape.Categories.Inventory:CreateModule({
+		Name = 'AutoManager',
+		Tooltip = 'Automatically manages inventory and equips primary weapons.',
+		Function = function(callback)
+			if callback then
+				AutoManager:Clean(runService.Heartbeat:Connect(function()
+					if not lplr.Character then return end
+					local backpack = lplr:FindFirstChild('Backpack')
+					if not backpack then return end
+
+					if AutoSort.Enabled then
+						for _, item in backpack:GetChildren() do
+							if item:IsA('Tool') then
+								if item.Name:lower():find('sword') or item.Name:lower():find('blade') then
+									item.Parent = lplr.Character
+									break
+								end
+							end
+						end
+					end
+				end))
+			end
+		end
+	})
+	AutoSort = AutoManager:CreateToggle({
+		Name = 'Auto Equip Sword',
+		Default = true,
+		Tooltip = 'Automatically equips best sword to primary hotbar slot'
+	})
+end)
+
+run(function()
 	local AntiFall
 	local Method
 	local Mode
