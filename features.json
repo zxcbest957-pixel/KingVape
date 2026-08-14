@@ -1,5 +1,6 @@
 {
 	"added": [
+		"BlockBreakVisuals",
 		"AutoParry",
 		"SmartScaffold",
 		"AutoManager",
@@ -14,5 +15,5 @@
 		"KitESP",
 		"ProjectileAura"
 	],
-	"text": "[KINGVAPE]\n\u001b[2;32m[+]\u001b[0m Added AutoParry module for automatic parrying & counter-attacks\n\u001b[2;32m[+]\u001b[0m Added SmartScaffold module with GodBridge & Fast Tower modes\n\u001b[2;32m[+]\u001b[0m Added AutoManager module for automated inventory & hotbar sword equipping\n\u001b[2;32m[+]\u001b[0m Added Favorites Category system with pin toggling in GUI Settings\n\u001b[2;32m[+]\u001b[0m Added 4 Detailed Custom Fonts (King Modern, Fredoka Pop, Arcade Rage, Cyber Matrix)\n\u001b[2;33m[!]\u001b[0m Fixed font selection resetting on game rejoin"
+	"text": "[KINGVAPE]\n\u001b[2;32m[+]\u001b[0m Added BlockBreakVisuals module with smooth rainbow shifting glow, 3D progress meter & shockwave burst\n\u001b[2;32m[+]\u001b[0m Added AutoParry module for automatic parrying & counter-attacks\n\u001b[2;32m[+]\u001b[0m Added SmartScaffold module with GodBridge & Fast Tower modes\n\u001b[2;32m[+]\u001b[0m Added AutoManager module for automated inventory & hotbar sword equipping\n\u001b[2;32m[+]\u001b[0m Added Favorites Category system with pin toggling in GUI Settings\n\u001b[2;32m[+]\u001b[0m Added 4 Detailed Custom Fonts (King Modern, Fredoka Pop, Arcade Rage, Cyber Matrix)\n\u001b[2;33m[!]\u001b[0m Fixed font selection resetting on game rejoin"
 }

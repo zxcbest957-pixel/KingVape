@@ -1546,6 +1546,210 @@ run(function()
 end)
 
 run(function()
+	local BlockBreakVisuals = {Enabled = false}
+	local Mode = {Value = 'Both'}
+	local ShowProgress = {Enabled = true}
+	local ParticleBurst = {Enabled = true}
+	local GlowSpeed = {Value = 2}
+
+	local currentTarget = nil
+	local currentProgress = 0
+	local highlightObj = nil
+	local selectionBox = nil
+	local billboardGui = nil
+	local fillFrame = nil
+	local pctText = nil
+
+	local function cleanupVisuals()
+		if highlightObj then pcall(function() highlightObj:Destroy() end) highlightObj = nil end
+		if selectionBox then pcall(function() selectionBox:Destroy() end) selectionBox = nil end
+		if billboardGui then pcall(function() billboardGui:Destroy() end) billboardGui = nil end
+	end
+
+	local function spawnBreakParticle(cf)
+		if not ParticleBurst.Enabled then return end
+		pcall(function()
+			local ring = Instance.new('Part')
+			ring.Size = Vector3.new(0.5, 0.1, 0.5)
+			ring.CFrame = cf
+			ring.Anchored = true
+			ring.CanCollide = false
+			ring.Material = Enum.Material.Neon
+			ring.Color = Color3.fromHSV((os.clock() * GlowSpeed.Value) % 1, 0.9, 1)
+			ring.Parent = workspace
+
+			local mesh = Instance.new('SpecialMesh')
+			mesh.MeshType = Enum.MeshType.FileMesh
+			mesh.MeshId = 'rbxassetid://3270017'
+			mesh.Scale = Vector3.new(1, 1, 1)
+			mesh.Parent = ring
+
+			tweenService:Create(mesh, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Scale = Vector3.new(8, 2, 8)
+			}):Play()
+			tweenService:Create(ring, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Transparency = 1
+			}):Play()
+
+			task.delay(0.45, function()
+				ring:Destroy()
+			end)
+		end)
+	end
+
+	BlockBreakVisuals = vape.Categories.Render:CreateModule({
+		Name = 'BlockBreakVisuals',
+		Tooltip = 'Renders smooth shifting rainbow glow, 3D progress bar & particle shockwave on broken blocks.',
+		Function = function(callback)
+			if not callback then
+				cleanupVisuals()
+				currentTarget = nil
+				currentProgress = 0
+			else
+				BlockBreakVisuals:Clean(runService.RenderStepped:Connect(function()
+					if not inputService:IsMouseButtonPressed(0) then
+						if currentTarget and currentProgress > 0.8 then
+							spawnBreakParticle(currentTarget.CFrame)
+						end
+						cleanupVisuals()
+						currentTarget = nil
+						currentProgress = 0
+						return
+					end
+
+					local mousePos = inputService:GetMouseLocation()
+					local ray = gameCamera:ViewportPointToRay(mousePos.X, mousePos.Y)
+					local rayParams = RaycastParams.new()
+					if lplr.Character then
+						rayParams.FilterDescendantsInstances = {lplr.Character}
+						rayParams.FilterType = Enum.RaycastFilterType.Exclude
+					end
+
+					local res = workspace:Raycast(ray.Origin, ray.Direction * 30, rayParams)
+					if res and res.Instance and res.Instance:IsA('BasePart') and res.Instance.Anchored then
+						local target = res.Instance
+						if target ~= currentTarget then
+							cleanupVisuals()
+							currentTarget = target
+							currentProgress = 0
+						end
+
+						currentProgress = math.clamp(currentProgress + (0.02 * (GlowSpeed.Value / 2)), 0, 1)
+						local hue = (os.clock() * GlowSpeed.Value * 0.3) % 1
+						local shiftColor = Color3.fromHSV(hue, 0.85, 1)
+
+						if Mode.Value == 'Rainbow Glow' or Mode.Value == 'Both' then
+							if not highlightObj or highlightObj.Parent ~= target then
+								if highlightObj then highlightObj:Destroy() end
+								highlightObj = Instance.new('Highlight')
+								highlightObj.Adornee = target
+								highlightObj.FillTransparency = 0.5
+								highlightObj.OutlineTransparency = 0.1
+								highlightObj.Parent = target
+							end
+							highlightObj.FillColor = shiftColor
+							highlightObj.OutlineColor = Color3.fromHSV((hue + 0.2) % 1, 0.9, 1)
+						end
+
+						if Mode.Value == 'Selection Box' or Mode.Value == 'Both' then
+							if not selectionBox or selectionBox.Adornee ~= target then
+								if selectionBox then selectionBox:Destroy() end
+								selectionBox = Instance.new('SelectionBox')
+								selectionBox.Adornee = target
+								selectionBox.LineThickness = 0.05
+								selectionBox.SurfaceTransparency = 0.7
+								selectionBox.Parent = target
+							end
+							selectionBox.Color3 = shiftColor
+							selectionBox.SurfaceColor3 = Color3.fromHSV((hue + 0.1) % 1, 0.8, 1)
+						end
+
+						if ShowProgress.Enabled then
+							if not billboardGui or billboardGui.Adornee ~= target then
+								if billboardGui then billboardGui:Destroy() end
+								billboardGui = Instance.new('BillboardGui')
+								billboardGui.Size = UDim2.fromOffset(120, 24)
+								billboardGui.StudsOffset = Vector3.new(0, target.Size.Y / 2 + 1.2, 0)
+								billboardGui.AlwaysOnTop = true
+								billboardGui.Adornee = target
+								billboardGui.Parent = target
+
+								local bgFrame = Instance.new('Frame')
+								bgFrame.Size = UDim2.fromScale(1, 1)
+								bgFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+								bgFrame.BackgroundTransparency = 0.3
+								bgFrame.Parent = billboardGui
+
+								local corner = Instance.new('UICorner')
+								corner.CornerRadius = UDim.new(0, 6)
+								corner.Parent = bgFrame
+
+								fillFrame = Instance.new('Frame')
+								fillFrame.Size = UDim2.fromScale(currentProgress, 1)
+								fillFrame.BackgroundColor3 = shiftColor
+								fillFrame.Parent = bgFrame
+
+								local fillCorner = Instance.new('UICorner')
+								fillCorner.CornerRadius = UDim.new(0, 6)
+								fillCorner.Parent = fillFrame
+
+								pctText = Instance.new('TextLabel')
+								pctText.Size = UDim2.fromScale(1, 1)
+								pctText.BackgroundTransparency = 1
+								pctText.Text = math.floor(currentProgress * 100)..'%'
+								pctText.TextColor3 = Color3.new(1, 1, 1)
+								pctText.TextSize = 12
+								pctText.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.Bold)
+								pctText.Parent = bgFrame
+							end
+
+							if fillFrame then
+								fillFrame.Size = UDim2.fromScale(currentProgress, 1)
+								fillFrame.BackgroundColor3 = shiftColor
+							end
+							if pctText then
+								pctText.Text = math.floor(currentProgress * 100)..'%'
+							end
+						end
+					else
+						if currentTarget and currentProgress > 0.8 then
+							spawnBreakParticle(currentTarget.CFrame)
+						end
+						cleanupVisuals()
+						currentTarget = nil
+						currentProgress = 0
+					end
+				end))
+			end
+		end
+	})
+
+	Mode = BlockBreakVisuals:CreateDropdown({
+		Name = 'Visual Mode',
+		List = {'Rainbow Glow', 'Selection Box', 'Both'},
+		Default = 'Both'
+	})
+	ShowProgress = BlockBreakVisuals:CreateToggle({
+		Name = 'Progress Meter',
+		Default = true,
+		Tooltip = 'Displays smooth 3D progress percentage bar above block'
+	})
+	ParticleBurst = BlockBreakVisuals:CreateToggle({
+		Name = 'Particle Shockwave',
+		Default = true,
+		Tooltip = 'Spawns glowing expanding ring shockwave on block break completion'
+	})
+	GlowSpeed = BlockBreakVisuals:CreateSlider({
+		Name = 'Shift Speed',
+		Min = 0.5,
+		Max = 5,
+		Decimal = 10,
+		Default = 2,
+		Tooltip = 'Speed of the shifting rainbow colors'
+	})
+end)
+
+run(function()
 	local AntiFall
 	local Method
 	local Mode
