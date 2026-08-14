@@ -48,6 +48,13 @@ local function wipeFolder(path)
 end
 
 
+if isfile('catsix/guis/new.lua') then
+	pcall(delfile, 'catsix/guis/new.lua')
+end
+if isfile('catsix/profiles/color.txt') then
+	pcall(delfile, 'catsix/profiles/color.txt')
+end
+
 for _, folder in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 'catsix/libraries', 'catsix/guis'} do
 	if not isfolder(folder) then
 		downloader.Text = 'Downloading '.. folder
