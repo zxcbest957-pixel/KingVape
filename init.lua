@@ -44,16 +44,14 @@ local function downloadFile(path, func)
 end
 
 local function wipeFolder(path)
-	return
-end
-
-
-if isfile('catsix/guis/new.lua') then
-	pcall(delfile, 'catsix/guis/new.lua')
-end
-if isfolder('catsix/games') then
-	for _, v in listfiles('catsix/games') do
-		pcall(delfile, v)
+	if isfolder(path) then
+		pcall(function()
+			for _, file in listfiles(path) do
+				if isfile(file) and not file:find('color.txt') and not file:find('font.txt') and not file:find('favorites.txt') and not file:find('gui.txt') then
+					pcall(delfile, file)
+				end
+			end
+		end)
 	end
 end
 
@@ -64,26 +62,10 @@ for _, folder in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 
 	end
 end
 
-if not shared.VapeDeveloper then
-	local commit = license.Commit or nil
-	if not commit then
-		local _, subbed = pcall(function() 
-			return game:HttpGet('https://github.com/zxcbest957-pixel/KingVape') 
-		end)
-		commit = subbed:find('currentOid')
-		commit = commit and subbed:sub(commit + 13, commit + 52) or nil
-		commit = commit and #commit == 40 and commit or 'main'
-	end
-	if commit == 'main' or (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt') or '') ~= commit then
-		if commit ~= 'main' and isfile('catsix/profiles/commit.txt') then
-			shared.updated = readfile('catsix/profiles/commit.txt')
-		end
-		wipeFolder('catsix')
-		wipeFolder('catsix/games')
-		wipeFolder('catsix/guis')
-		wipeFolder('catsix/libraries')
-	end
-	writefile('catsix/profiles/commit.txt', commit)
+wipeFolder('catsix/guis')
+wipeFolder('catsix/games')
+wipeFolder('catsix/libraries')
+writefile('catsix/profiles/commit.txt', 'main')
 	if shared.updated or #listfiles('catsix/profiles') < 4 then
 		shared.VapePresetInstall = function()
 			local suc, req = pcall(request, {
