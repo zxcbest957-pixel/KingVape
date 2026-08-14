@@ -6,6 +6,29 @@ local mainapi = {
 		Sat = 0.95,
 		Value = 1.0
 	},
+	CustomFonts = {
+		['King Modern'] = {
+			Font = Font.fromEnum(Enum.Font.GothamMedium),
+			FontSemiBold = Font.fromEnum(Enum.Font.GothamBold),
+			Name = 'King Modern'
+		},
+		['Fredoka Pop'] = {
+			Font = Font.fromEnum(Enum.Font.FredokaOne),
+			FontSemiBold = Font.fromEnum(Enum.Font.FredokaOne),
+			Name = 'Fredoka Pop'
+		},
+		['Arcade Rage'] = {
+			Font = Font.fromEnum(Enum.Font.LuckiestGuy),
+			FontSemiBold = Font.fromEnum(Enum.Font.LuckiestGuy),
+			Name = 'Arcade Rage'
+		},
+		['Cyber Matrix'] = {
+			Font = Font.fromEnum(Enum.Font.RobotoMono),
+			FontSemiBold = Font.fromEnum(Enum.Font.RobotoMono),
+			Name = 'Cyber Matrix'
+		}
+	},
+	CurrentFont = 'King Modern',
 	HeldKeybinds = {},
 	Keybind = {'RightShift'},
 	Loaded = false,
@@ -2726,6 +2749,32 @@ function mainapi:CreateGUI()
 		categoryapi.Options.Bind = optionapi
 
 		return optionapi
+	end
+
+	function categoryapi:CreateFontSelector()
+		local fontList = {'King Modern', 'Fredoka Pop', 'Arcade Rage', 'Cyber Matrix'}
+		local currentIndex = 1
+
+		local button = Instance.new('TextButton')
+		button.Size = UDim2.fromOffset(220, 40)
+		button.BackgroundColor3 = uipallet.Main
+		button.BorderSizePixel = 0
+		button.AutoButtonColor = false
+		button.Text = '          Font: '..mainapi.CurrentFont
+		button.TextXAlignment = Enum.TextXAlignment.Left
+		button.TextColor3 = color.Dark(uipallet.Text, 0.16)
+		button.TextSize = 14
+		button.FontFace = uipallet.Font
+		button.Parent = settingschildren
+		addTooltip(button, 'Click to switch between 4 custom detailed fonts')
+
+		button.MouseButton1Click:Connect(function()
+			currentIndex = (currentIndex % #fontList) + 1
+			local selectedFont = fontList[currentIndex]
+			mainapi:SetFont(selectedFont)
+			button.Text = '          Font: '..selectedFont
+			button.FontFace = uipallet.Font
+		end)
 	end
 
 	function categoryapi:CreateButton(categorysettings)
@@ -11075,6 +11124,26 @@ function mainapi:UpdateTextGUI(afterload)
 	end
 
 	mainapi:UpdateGUI(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value, true)
+end
+
+function mainapi:SetFont(fontName)
+	local fontData = self.CustomFonts[fontName]
+	if fontData then
+		self.CurrentFont = fontName
+		uipallet.Font = fontData.Font
+		uipallet.FontSemiBold = fontData.FontSemiBold
+		fontsize.Font = uipallet.Font
+
+		for _, category in self.Categories do
+			if category.Buttons then
+				for _, button in category.Buttons do
+					if button.Object then
+						button.Object.FontFace = uipallet.Font
+					end
+				end
+			end
+		end
+	end
 end
 
 function mainapi:UpdateGUI(hue, sat, val, default)
