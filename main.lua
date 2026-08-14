@@ -38,7 +38,7 @@ local httpService = cloneref(game:GetService("HttpService"))
 local function downloadFile(path, func)
 	if not isfile(path) then
 		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catsix/profiles/commit.txt')..'/'..select(1, path:gsub('catsix/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..readfile('catsix/profiles/commit.txt')..'/'..select(1, path:gsub('catsix/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
 			error(res)
@@ -64,7 +64,7 @@ local function finishLoading()
 				if shared.VapeDeveloper then
 					loadstring(readfile('catsix/main.lua'), 'main')(_scriptconfig)
 				else
-					loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catsix/profiles/commit.txt')..'/init.lua', true), 'init')(_scriptconfig)
+					loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..readfile('catsix/profiles/commit.txt')..'/init.lua', true), 'init')(_scriptconfig)
 				end
 			]]
 			local teleportConfig = httpService:JSONEncode(license)
