@@ -67,9 +67,11 @@ for _, folder in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 
 	end
 end
 
-wipeFolder('catsix/guis')
-wipeFolder('catsix/games')
-wipeFolder('catsix/libraries')
+if shared.ForceUpdate or shared.vapereload then
+	wipeFolder('catsix/guis')
+	wipeFolder('catsix/games')
+	wipeFolder('catsix/libraries')
+end
 writefile('catsix/profiles/commit.txt', 'main')
 	if shared.updated or #listfiles('catsix/profiles') < 4 then
 		shared.VapePresetInstall = function()
