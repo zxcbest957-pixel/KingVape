@@ -19297,8 +19297,7 @@ run(function()
 	local ShowTracers = {Enabled = true}
 	local ShowBreakerInfo = {Enabled = true}
 	local ParticleBurst = {Enabled = true}
-	local RequireToolOrSwing = {Enabled = false}
-	local LingerTime = {Value = 1.2}
+	local LingerTime = {Value = 2.0}
 	local GlowSpeed = {Value = 2}
 
 	local activeTargets = {}
@@ -19306,6 +19305,8 @@ run(function()
 	local visualsFolder = Instance.new('Folder')
 	visualsFolder.Name = 'KingVape_EnemyBreakVisuals'
 	visualsFolder.Parent = workspace
+
+	local oldPlayHit, oldPlayBreak, oldUpdateHealthbar
 
 	local function isEnemy(plr)
 		if not plr or plr == lplr then return false end
@@ -19320,9 +19321,25 @@ run(function()
 		return true
 	end
 
+	local function findNearestEnemy(worldPos)
+		if not worldPos then return nil end
+		local nearest, nearestDist = nil, 25
+		for _, plr in playersService:GetPlayers() do
+			if isEnemy(plr) and plr.Character and plr.Character:FindFirstChild('HumanoidRootPart') then
+				local d = (plr.Character.HumanoidRootPart.Position - worldPos).Magnitude
+				if d < nearestDist then
+					nearest = plr
+					nearestDist = d
+				end
+			end
+		end
+		return nearest
+	end
+
 	local function cleanupVisual(key)
 		if renderedVisuals[key] then
 			pcall(function()
+				if renderedVisuals[key].ProxyPart then renderedVisuals[key].ProxyPart:Destroy() end
 				if renderedVisuals[key].Highlight then renderedVisuals[key].Highlight:Destroy() end
 				if renderedVisuals[key].SelectionBox then renderedVisuals[key].SelectionBox:Destroy() end
 				if renderedVisuals[key].BoxAdornment then renderedVisuals[key].BoxAdornment:Destroy() end
@@ -19360,14 +19377,14 @@ run(function()
 			mesh.Scale = Vector3.new(1, 1, 1)
 			mesh.Parent = ring
 
-			tweenService:Create(mesh, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			tweenService:Create(mesh, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Scale = Vector3.new(8, 2, 8)
 			}):Play()
-			tweenService:Create(ring, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			tweenService:Create(ring, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Transparency = 1
 			}):Play()
 
-			task.delay(0.45, function()
+			task.delay(0.5, function()
 				pcall(function() ring:Destroy() end)
 			end)
 		end)
@@ -19389,89 +19406,103 @@ run(function()
 		return Color3.fromRGB(255, 65, 65)
 	end
 
-	local function scanMiners()
-		local myRoot = (lplr.Character and lplr.Character:FindFirstChild('HumanoidRootPart'))
+	local function getPartAtPosition(worldPos)
+		for _, part in workspace:GetPartBoundsInBox(CFrame.new(worldPos), Vector3.new(3.4, 3.4, 3.4)) do
+			if part:IsA('BasePart') and part.Anchored and part.Parent ~= visualsFolder and not part:IsA('Terrain') then
+				return part
+			end
+		end
+		return nil
+	end
+
+	local function handleBlockEvent(blockName, blockPos, player, actionType, curHealth, maxHealth, dmg, targetBlock)
+		if not EnemyBreakVisuals.Enabled then return end
+
+		local worldPos
+		if typeof(blockPos) == 'Vector3' then
+			if blockPos.Magnitude < 5000 and (blockPos.X % 1 ~= 0 or blockPos.Y % 1 ~= 0 or math.abs(blockPos.X) < 1000) then
+				worldPos = blockPos * 3 + Vector3.new(1.5, 1.5, 1.5)
+			else
+				worldPos = blockPos
+			end
+		elseif targetBlock and targetBlock:IsA('BasePart') then
+			worldPos = targetBlock.Position
+		else
+			return
+		end
+
+		local breaker = player
+		if not breaker or not breaker:IsA('Player') then
+			breaker = findNearestEnemy(worldPos)
+		end
+
+		if not breaker or not isEnemy(breaker) then
+			return
+		end
+
+		local myRoot = lplr.Character and lplr.Character:FindFirstChild('HumanoidRootPart')
 		local myPos = myRoot and myRoot.Position or (gameCamera and gameCamera.CFrame.Position)
 		if not myPos then return end
 
-		local maxDistStuds = MaxDistance.Value * 3
-
-		for _, plr in playersService:GetPlayers() do
-			if isEnemy(plr) and plr.Character and plr.Character:FindFirstChild('HumanoidRootPart') and plr.Character:FindFirstChild('Head') then
-				local enemyChar = plr.Character
-				local enemyRoot = enemyChar.HumanoidRootPart
-				local enemyHead = enemyChar.Head
-				local distToMe = (enemyRoot.Position - myPos).Magnitude
-
-				if distToMe <= maxDistStuds then
-					local hasTool = enemyChar:FindFirstChildWhichIsA('Tool') ~= nil
-					local humanoid = enemyChar:FindFirstChildOfClass('Humanoid')
-					local isSwinging = false
-					if humanoid then
-						pcall(function()
-							for _, track in humanoid:GetPlayingAnimationTracks() do
-								if track.IsPlaying and track.Speed > 0 then
-									isSwinging = true
-									break
-								end
-							end
-						end)
-					end
-
-					if (not RequireToolOrSwing.Enabled) or hasTool or isSwinging then
-						local rayParams = RaycastParams.new()
-						rayParams.FilterDescendantsInstances = {enemyChar, visualsFolder}
-						rayParams.FilterType = Enum.RaycastFilterType.Exclude
-
-						local lookDir = enemyHead.CFrame.LookVector
-						local res = workspace:Raycast(enemyHead.Position, lookDir * 18, rayParams)
-						if res and res.Instance and res.Instance:IsA('BasePart') and res.Instance.Anchored then
-							local hitBlock = res.Instance
-							local isBlock = hitBlock:HasTag('block') or (hitBlock.Parent and hitBlock.Parent.Name == 'Blocks') or (hitBlock.Size.X >= 2.5 and hitBlock.Size.Y >= 2.5 and hitBlock.Size.Z >= 2.5) or hitBlock.CanCollide
-							if isBlock then
-								local key = hitBlock
-								local existing = activeTargets[key]
-								if not existing then
-									activeTargets[key] = {
-										targetPart = hitBlock,
-										enemy = plr,
-										lastSeen = tick(),
-										progress = 0
-									}
-								else
-									existing.lastSeen = tick()
-									existing.enemy = plr
-									existing.progress = math.clamp(existing.progress + 0.02 * GlowSpeed.Value, 0, 1)
-								end
-							end
-						end
-					end
-				end
-			end
+		local distToMe = (worldPos - myPos).Magnitude
+		local distBlocks = math.floor(distToMe / 3)
+		if distBlocks > MaxDistance.Value then
+			return
 		end
+
+		local blockPart = targetBlock or getPartAtPosition(worldPos)
+		local key = blockPart or string.format('%d_%d_%d', math.floor(worldPos.X), math.floor(worldPos.Y), math.floor(worldPos.Z))
+
+		local existing = activeTargets[key]
+		local hitCount = (existing and existing.hits or 0) + 1
+		local currentAction = actionType or 'hit'
+
+		activeTargets[key] = {
+			key = key,
+			blockName = blockName or (blockPart and blockPart.Name) or 'block',
+			worldPos = worldPos,
+			targetPart = blockPart,
+			enemy = breaker,
+			lastHit = tick(),
+			hits = hitCount,
+			action = currentAction,
+			curHealth = curHealth,
+			maxHealth = maxHealth,
+			dmg = dmg
+		}
+
+		local col = getColor(distBlocks)
+		spawnBreakParticle(CFrame.new(worldPos), col)
 	end
 
 	local function renderActiveTargets()
 		local now = tick()
-		local myRoot = (lplr.Character and lplr.Character:FindFirstChild('HumanoidRootPart'))
+		local myRoot = lplr.Character and lplr.Character:FindFirstChild('HumanoidRootPart')
 		local myPos = myRoot and myRoot.Position or (gameCamera and gameCamera.CFrame.Position)
 		if not myPos then return end
 
 		local pulseAlpha = PulseEffect.Enabled and (0.5 + 0.5 * math.sin(now * GlowSpeed.Value * 5)) or 1
 
 		for key, data in activeTargets do
-			local targetPart = data.targetPart
+			local timeSinceHit = now - data.lastHit
 			local enemy = data.enemy
 			local enemyRoot = enemy and enemy.Character and enemy.Character:FindFirstChild('HumanoidRootPart')
 
-			if not targetPart or not targetPart.Parent or (now - data.lastSeen > LingerTime.Value) or not enemy or not enemy.Parent then
+			if timeSinceHit > LingerTime.Value or not enemy or not enemy.Parent then
 				cleanupVisual(key)
 				activeTargets[key] = nil
 			else
-				local distToMe = (targetPart.Position - myPos).Magnitude
+				local worldPos = data.worldPos
+				local targetPart = data.targetPart
+				if not targetPart or not targetPart.Parent then
+					targetPart = getPartAtPosition(worldPos)
+					data.targetPart = targetPart
+				end
+
+				local distToMe = (worldPos - myPos).Magnitude
 				local distBlocks = math.floor(distToMe / 3)
 
-				if distToMe > (MaxDistance.Value * 3 + 6) then
+				if distBlocks > (MaxDistance.Value + 2) then
 					cleanupVisual(key)
 					activeTargets[key] = nil
 				else
@@ -19482,19 +19513,38 @@ run(function()
 						renderedVisuals[key] = vis
 					end
 
+					local fadeProgress = math.clamp(1 - (timeSinceHit / LingerTime.Value), 0, 1)
+					local currentAlpha = fadeProgress * (0.65 + 0.35 * pulseAlpha)
+
+					if not targetPart then
+						if not vis.ProxyPart or not vis.ProxyPart.Parent then
+							if vis.ProxyPart then vis.ProxyPart:Destroy() end
+							local p = Instance.new('Part')
+							p.Size = Vector3.new(3, 3, 3)
+							p.CFrame = CFrame.new(worldPos)
+							p.Anchored = true
+							p.CanCollide = false
+							p.CanQuery = false
+							p.Transparency = 1
+							p.Parent = visualsFolder
+							vis.ProxyPart = p
+						end
+						targetPart = vis.ProxyPart
+					end
+
 					if Mode.Value == 'Highlight Glow' or Mode.Value == 'All Effects' then
-						if not vis.Highlight or vis.Highlight.Parent ~= targetPart then
+						if not vis.Highlight or vis.Highlight.Adornee ~= targetPart then
 							if vis.Highlight then vis.Highlight:Destroy() end
 							local hl = Instance.new('Highlight')
 							hl.Adornee = targetPart
-							hl.FillTransparency = 0.35 + (1 - pulseAlpha) * 0.35
 							hl.OutlineTransparency = 0
-							hl.Parent = targetPart
+							hl.Parent = visualsFolder
 							vis.Highlight = hl
 						end
 						vis.Highlight.FillColor = col
 						vis.Highlight.OutlineColor = col
-						vis.Highlight.FillTransparency = 0.35 + (1 - pulseAlpha) * 0.35
+						vis.Highlight.FillTransparency = math.clamp(1 - (currentAlpha * 0.7), 0.2, 1)
+						vis.Highlight.OutlineTransparency = math.clamp(1 - currentAlpha, 0, 1)
 					elseif vis.Highlight then
 						vis.Highlight:Destroy()
 						vis.Highlight = nil
@@ -19505,13 +19555,14 @@ run(function()
 							if vis.SelectionBox then vis.SelectionBox:Destroy() end
 							local sbox = Instance.new('SelectionBox')
 							sbox.Adornee = targetPart
-							sbox.LineThickness = 0.05
-							sbox.SurfaceTransparency = 0.7
+							sbox.LineThickness = 0.06
 							sbox.Parent = visualsFolder
 							vis.SelectionBox = sbox
 						end
 						vis.SelectionBox.Color3 = col
 						vis.SelectionBox.SurfaceColor3 = col
+						vis.SelectionBox.SurfaceTransparency = math.clamp(1 - (currentAlpha * 0.4), 0.5, 1)
+						vis.SelectionBox.Transparency = math.clamp(1 - currentAlpha, 0, 1)
 					elseif vis.SelectionBox then
 						vis.SelectionBox:Destroy()
 						vis.SelectionBox = nil
@@ -19521,16 +19572,15 @@ run(function()
 						if not vis.BoxAdornment or vis.BoxAdornment.Adornee ~= targetPart then
 							if vis.BoxAdornment then vis.BoxAdornment:Destroy() end
 							local box = Instance.new('BoxHandleAdornment')
-							box.Size = targetPart.Size + Vector3.new(0.04, 0.04, 0.04)
+							box.Size = (targetPart.Size or Vector3.new(3, 3, 3)) + Vector3.new(0.06, 0.06, 0.06)
 							box.AlwaysOnTop = true
 							box.ZIndex = 3
-							box.Transparency = 0.45 + (1 - pulseAlpha) * 0.35
 							box.Adornee = targetPart
 							box.Parent = visualsFolder
 							vis.BoxAdornment = box
 						end
 						vis.BoxAdornment.Color3 = col
-						vis.BoxAdornment.Transparency = 0.45 + (1 - pulseAlpha) * 0.35
+						vis.BoxAdornment.Transparency = math.clamp(1 - (currentAlpha * 0.6), 0.3, 1)
 					elseif vis.BoxAdornment then
 						vis.BoxAdornment:Destroy()
 						vis.BoxAdornment = nil
@@ -19538,9 +19588,9 @@ run(function()
 
 					if ShowTracers.Enabled and enemyRoot then
 						local originPos = enemyRoot.Position
-						local targetPos = targetPart.Position
-						local tracerDist = (targetPos - originPos).Magnitude
-						local tracerCFrame = CFrame.lookAt(originPos:Lerp(targetPos, 0.5), targetPos)
+						local targetCenter = worldPos
+						local tracerDist = (targetCenter - originPos).Magnitude
+						local tracerCFrame = CFrame.lookAt(originPos:Lerp(targetCenter, 0.5), targetCenter)
 
 						if not vis.TracerPart or not vis.TracerPart.Parent then
 							if vis.TracerPart then vis.TracerPart:Destroy() end
@@ -19555,7 +19605,7 @@ run(function()
 						vis.TracerPart.Size = Vector3.new(0.12, 0.12, tracerDist)
 						vis.TracerPart.CFrame = tracerCFrame
 						vis.TracerPart.Color = col
-						vis.TracerPart.Transparency = 0.3 + (1 - pulseAlpha) * 0.3
+						vis.TracerPart.Transparency = math.clamp(1 - (currentAlpha * 0.75), 0.25, 1)
 					elseif vis.TracerPart then
 						vis.TracerPart:Destroy()
 						vis.TracerPart = nil
@@ -19564,13 +19614,14 @@ run(function()
 					if ShowBreakerInfo.Enabled then
 						local enemyHumanoid = enemy.Character and enemy.Character:FindFirstChildOfClass('Humanoid')
 						local enemyHealth = enemyHumanoid and math.floor(enemyHumanoid.Health) or 100
-						local infoText = string.format('<b>⛏️ %s</b> [%d HP] • %d blk', enemy.DisplayName or enemy.Name, enemyHealth, distBlocks)
+						local actionLabel = (data.action == 'break' and '<font color="#FF3333">BROKEN</font>') or string.format('Hit #%d', data.hits)
+						local infoText = string.format('<b>⛏️ %s</b> [%d HP] • %s • %d blk', enemy.DisplayName or enemy.Name, enemyHealth, actionLabel, distBlocks)
 
 						if not vis.Billboard or vis.Billboard.Adornee ~= targetPart then
 							if vis.Billboard then vis.Billboard:Destroy() end
 							local bb = Instance.new('BillboardGui')
-							bb.Size = UDim2.fromOffset(160, 26)
-							bb.StudsOffset = Vector3.new(0, targetPart.Size.Y / 2 + 1.2, 0)
+							bb.Size = UDim2.fromOffset(170, 26)
+							bb.StudsOffset = Vector3.new(0, (targetPart.Size.Y or 3) / 2 + 1.2, 0)
 							bb.AlwaysOnTop = true
 							bb.Adornee = targetPart
 							bb.Parent = visualsFolder
@@ -19578,7 +19629,7 @@ run(function()
 							local frame = Instance.new('Frame')
 							frame.Size = UDim2.fromScale(1, 1)
 							frame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-							frame.BackgroundTransparency = 0.25
+							frame.BackgroundTransparency = 0.2
 							frame.BorderSizePixel = 0
 							frame.Parent = bb
 
@@ -19622,34 +19673,63 @@ run(function()
 
 	EnemyBreakVisuals = category:CreateModule({
 		Name = 'EnemyBreakVisuals',
-		Tooltip = 'Detects enemy players breaking blocks and renders custom glow, 3D box, tracers & info tags with distance filter.',
+		Tooltip = 'Accurately highlights blocks that enemies damage or break via server events with custom effects.',
 		Function = function(callback)
 			if not callback then
 				cleanupAllVisuals()
+				if oldPlayHit and bedwars.BlockBreaker and bedwars.BlockBreaker.breakEffect then
+					bedwars.BlockBreaker.breakEffect.playHit = oldPlayHit
+					oldPlayHit = nil
+				end
+				if oldPlayBreak and bedwars.BlockBreaker and bedwars.BlockBreaker.breakEffect then
+					bedwars.BlockBreaker.breakEffect.playBreak = oldPlayBreak
+					oldPlayBreak = nil
+				end
+				if oldUpdateHealthbar and bedwars.BlockBreaker then
+					bedwars.BlockBreaker.updateHealthbar = oldUpdateHealthbar
+					oldUpdateHealthbar = nil
+				end
 			else
 				EnemyBreakVisuals:Clean(runService.RenderStepped:Connect(function()
-					scanMiners()
 					renderActiveTargets()
 				end))
+
+				if bedwars.BlockBreaker and bedwars.BlockBreaker.breakEffect then
+					oldPlayHit = bedwars.BlockBreaker.breakEffect.playHit
+					bedwars.BlockBreaker.breakEffect.playHit = function(self, blockName, blockPos, player, ...)
+						pcall(function()
+							handleBlockEvent(blockName, blockPos, player, 'hit')
+						end)
+						return oldPlayHit(self, blockName, blockPos, player, ...)
+					end
+
+					oldPlayBreak = bedwars.BlockBreaker.breakEffect.playBreak
+					bedwars.BlockBreaker.breakEffect.playBreak = function(self, blockName, blockPos, player, ...)
+						pcall(function()
+							handleBlockEvent(blockName, blockPos, player, 'break')
+						end)
+						return oldPlayBreak(self, blockName, blockPos, player, ...)
+					end
+				end
+
+				if bedwars.BlockBreaker and bedwars.BlockBreaker.updateHealthbar then
+					oldUpdateHealthbar = bedwars.BlockBreaker.updateHealthbar
+					bedwars.BlockBreaker.updateHealthbar = function(self, blockRef, curHealth, maxHealth, dmg, blockPart, ...)
+						pcall(function()
+							local blockPos = blockRef and blockRef.blockPosition
+							handleBlockEvent(blockPart and blockPart.Name, blockPos, nil, 'damage', curHealth, maxHealth, dmg, blockPart)
+						end)
+						return oldUpdateHealthbar(self, blockRef, curHealth, maxHealth, dmg, blockPart, ...)
+					end
+				end
 
 				if vapeEvents and vapeEvents.BreakBlockEvent then
 					EnemyBreakVisuals:Clean(vapeEvents.BreakBlockEvent.Event:Connect(function(data)
 						local plr = data.player or (data.blockRef and data.blockRef.player)
-						if plr and not isEnemy(plr) then return end
-
 						local blockPos = data.blockRef and data.blockRef.blockPosition
-						if not blockPos then return end
-
-						local worldPos = blockPos * 3
-						local myRoot = (lplr.Character and lplr.Character:FindFirstChild('HumanoidRootPart'))
-						local myPos = myRoot and myRoot.Position or (gameCamera and gameCamera.CFrame.Position)
-						if not myPos then return end
-
-						local distToMe = (worldPos - myPos).Magnitude
-						if distToMe > (MaxDistance.Value * 3) then return end
-
-						local col = getColor(math.floor(distToMe / 3))
-						spawnBreakParticle(CFrame.new(worldPos), col)
+						if blockPos then
+							handleBlockEvent('block', blockPos, plr, 'break')
+						end
 					end))
 				end
 			end
@@ -19687,7 +19767,7 @@ run(function()
 		Max = 60,
 		Default = 15,
 		Suffix = 'blocks',
-		Tooltip = 'Only detects and highlights enemies within this distance (in blocks)'
+		Tooltip = 'Only highlights blocks damaged/broken within this distance (in blocks)'
 	})
 	PulseEffect = EnemyBreakVisuals:CreateToggle({
 		Name = 'Pulse Animation',
@@ -19702,26 +19782,21 @@ run(function()
 	ShowBreakerInfo = EnemyBreakVisuals:CreateToggle({
 		Name = 'Show Breaker Info',
 		Default = true,
-		Tooltip = 'Displays enemy name, health, and distance tag above block'
+		Tooltip = 'Displays enemy name, health, hit count/action, and distance above block'
 	})
 	ParticleBurst = EnemyBreakVisuals:CreateToggle({
 		Name = 'Particle Shockwave',
 		Default = true,
 		Tooltip = 'Spawns expanding neon shockwave ring when block is damaged or broken'
 	})
-	RequireToolOrSwing = EnemyBreakVisuals:CreateToggle({
-		Name = 'Require Tool / Swing',
-		Default = false,
-		Tooltip = 'Only detects when enemy is holding a pickaxe/tool or actively swinging'
-	})
 	LingerTime = EnemyBreakVisuals:CreateSlider({
 		Name = 'Linger Duration',
-		Min = 0.3,
-		Max = 4,
+		Min = 0.5,
+		Max = 5,
 		Decimal = 10,
-		Default = 1.2,
+		Default = 2.0,
 		Suffix = 's',
-		Tooltip = 'How long the highlight remains visible after the enemy stops hitting'
+		Tooltip = 'How long the highlight remains visible after the block was damaged'
 	})
 	GlowSpeed = EnemyBreakVisuals:CreateSlider({
 		Name = 'Shift Speed',
