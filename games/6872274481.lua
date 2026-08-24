@@ -19302,6 +19302,7 @@ run(function()
 
 	local activeTargets = {}
 	local renderedVisuals = {}
+	local previousHealthCache = {}
 	local visualsFolder = Instance.new('Folder')
 	visualsFolder.Name = 'KingVape_EnemyBreakVisuals'
 	visualsFolder.Parent = workspace
@@ -19323,7 +19324,7 @@ run(function()
 
 	local function findNearestEnemy(worldPos)
 		if not worldPos then return nil end
-		local nearest, nearestDist = nil, 25
+		local nearest, nearestDist = nil, 22
 		for _, plr in playersService:GetPlayers() do
 			if isEnemy(plr) and plr.Character and plr.Character:FindFirstChild('HumanoidRootPart') then
 				local d = (plr.Character.HumanoidRootPart.Position - worldPos).Magnitude
@@ -19334,6 +19335,85 @@ run(function()
 			end
 		end
 		return nearest
+	end
+
+	local function getPartAtPosition(worldPos)
+		if not worldPos then return nil end
+		for _, part in workspace:GetPartBoundsInBox(CFrame.new(worldPos), Vector3.new(3.2, 3.2, 3.2)) do
+			if part:IsA('BasePart') and part.Anchored and part.Parent ~= visualsFolder and not part:IsA('Terrain') then
+				return part
+			end
+		end
+		return nil
+	end
+
+	local function resolveBlock(blockPos, targetBlock)
+		local blockPart = nil
+		local worldPos = nil
+		local gridPos = nil
+
+		if targetBlock and targetBlock:IsA('BasePart') and targetBlock.Parent then
+			blockPart = targetBlock
+			worldPos = targetBlock.Position
+			if bedwars.BlockController and bedwars.BlockController.getBlockPosition then
+				pcall(function()
+					gridPos = bedwars.BlockController:getBlockPosition(targetBlock.Position)
+				end)
+			end
+		elseif typeof(blockPos) == 'Vector3' then
+			if bedwars.BlockController then
+				if math.abs(blockPos.X) < 1500 and math.abs(blockPos.Y) < 500 and math.abs(blockPos.Z) < 1500 then
+					gridPos = Vector3.new(math.floor(blockPos.X + 0.5), math.floor(blockPos.Y + 0.5), math.floor(blockPos.Z + 0.5))
+					if bedwars.BlockController.getWorldPosition then
+						pcall(function()
+							worldPos = bedwars.BlockController:getWorldPosition(gridPos)
+						end)
+					end
+					worldPos = worldPos or (gridPos * 3)
+				else
+					worldPos = blockPos
+					pcall(function()
+						gridPos = bedwars.BlockController:getBlockPosition(worldPos)
+					end)
+				end
+
+				if gridPos and bedwars.BlockController.getStore and bedwars.BlockController:getStore().getBlockAt then
+					pcall(function()
+						blockPart = bedwars.BlockController:getStore():getBlockAt(gridPos)
+					end)
+				end
+			else
+				gridPos = blockPos
+				worldPos = gridPos * 3
+			end
+
+			if not blockPart and worldPos then
+				blockPart = getPartAtPosition(worldPos)
+			end
+			if blockPart and not worldPos then
+				worldPos = blockPart.Position
+			end
+		end
+
+		return blockPart, worldPos, gridPos
+	end
+
+	local function getBlockHealthInfo(blockPart, gridPos)
+		local curHealth, maxHealth = nil, nil
+		if blockPart then
+			curHealth = blockPart:GetAttribute('Health') or blockPart:GetAttribute('1')
+			maxHealth = blockPart:GetAttribute('MaxHealth') or 100
+		end
+		if gridPos and bedwars.BlockController and bedwars.BlockController.getStore then
+			pcall(function()
+				local blockdata = bedwars.BlockController:getStore():getBlockData(gridPos)
+				if blockdata then
+					curHealth = curHealth or blockdata:GetAttribute('1') or blockdata:GetAttribute('Health')
+					maxHealth = maxHealth or blockdata:GetAttribute('MaxHealth')
+				end
+			end)
+		end
+		return curHealth, maxHealth or 100
 	end
 
 	local function cleanupVisual(key)
@@ -19356,6 +19436,7 @@ run(function()
 		end
 		table.clear(renderedVisuals)
 		table.clear(activeTargets)
+		table.clear(previousHealthCache)
 	end
 
 	local function spawnBreakParticle(cf, col)
@@ -19390,7 +19471,7 @@ run(function()
 		end)
 	end
 
-	local function getColor(distBlocks)
+	local function getColor(distBlocks, healthPct)
 		if ColorMode.Value == 'Custom' then
 			return Color3.fromHSV(CustomColor.Hue, CustomColor.Sat, CustomColor.Value)
 		elseif ColorMode.Value == 'Rainbow' then
@@ -19406,30 +19487,11 @@ run(function()
 		return Color3.fromRGB(255, 65, 65)
 	end
 
-	local function getPartAtPosition(worldPos)
-		for _, part in workspace:GetPartBoundsInBox(CFrame.new(worldPos), Vector3.new(3.4, 3.4, 3.4)) do
-			if part:IsA('BasePart') and part.Anchored and part.Parent ~= visualsFolder and not part:IsA('Terrain') then
-				return part
-			end
-		end
-		return nil
-	end
-
 	local function handleBlockEvent(blockName, blockPos, player, actionType, curHealth, maxHealth, dmg, targetBlock)
 		if not EnemyBreakVisuals.Enabled then return end
 
-		local worldPos
-		if typeof(blockPos) == 'Vector3' then
-			if blockPos.Magnitude < 5000 and (blockPos.X % 1 ~= 0 or blockPos.Y % 1 ~= 0 or math.abs(blockPos.X) < 1000) then
-				worldPos = blockPos * 3 + Vector3.new(1.5, 1.5, 1.5)
-			else
-				worldPos = blockPos
-			end
-		elseif targetBlock and targetBlock:IsA('BasePart') then
-			worldPos = targetBlock.Position
-		else
-			return
-		end
+		local blockPart, worldPos, gridPos = resolveBlock(blockPos, targetBlock)
+		if not worldPos then return end
 
 		local breaker = player
 		if not breaker or not breaker:IsA('Player') then
@@ -19450,29 +19512,66 @@ run(function()
 			return
 		end
 
-		local blockPart = targetBlock or getPartAtPosition(worldPos)
-		local key = blockPart or string.format('%d_%d_%d', math.floor(worldPos.X), math.floor(worldPos.Y), math.floor(worldPos.Z))
+		local key = blockPart or (gridPos and string.format('%d_%d_%d', gridPos.X, gridPos.Y, gridPos.Z)) or string.format('%d_%d_%d', math.floor(worldPos.X), math.floor(worldPos.Y), math.floor(worldPos.Z))
+
+		local detectedHealth, detectedMax = getBlockHealthInfo(blockPart, gridPos)
+		local finalCurHealth = curHealth or detectedHealth
+		local finalMaxHealth = maxHealth or detectedMax or 100
 
 		local existing = activeTargets[key]
 		local hitCount = (existing and existing.hits or 0) + 1
-		local currentAction = actionType or 'hit'
+		local currentAction = actionType or 'damage'
 
 		activeTargets[key] = {
 			key = key,
 			blockName = blockName or (blockPart and blockPart.Name) or 'block',
 			worldPos = worldPos,
+			gridPos = gridPos,
 			targetPart = blockPart,
 			enemy = breaker,
 			lastHit = tick(),
 			hits = hitCount,
 			action = currentAction,
-			curHealth = curHealth,
-			maxHealth = maxHealth,
+			curHealth = finalCurHealth,
+			maxHealth = finalMaxHealth,
 			dmg = dmg
 		}
 
-		local col = getColor(distBlocks)
+		local col = getColor(distBlocks, finalCurHealth and finalMaxHealth and (finalCurHealth / finalMaxHealth))
 		spawnBreakParticle(CFrame.new(worldPos), col)
+	end
+
+	local function scanDamagedBlocksNearEnemies()
+		local myRoot = lplr.Character and lplr.Character:FindFirstChild('HumanoidRootPart')
+		local myPos = myRoot and myRoot.Position or (gameCamera and gameCamera.CFrame.Position)
+		if not myPos then return end
+
+		for _, plr in playersService:GetPlayers() do
+			if isEnemy(plr) and plr.Character and plr.Character:FindFirstChild('HumanoidRootPart') then
+				local enemyPos = plr.Character.HumanoidRootPart.Position
+				local distToMe = (enemyPos - myPos).Magnitude
+				if distToMe <= (MaxDistance.Value * 3 + 15) then
+					if store and store.blocks then
+						for _, block in store.blocks do
+							if block and block.Parent and block:IsA('BasePart') then
+								local distToEnemy = (block.Position - enemyPos).Magnitude
+								if distToEnemy <= 18 then
+									local curHealth = block:GetAttribute('Health') or block:GetAttribute('1')
+									local maxHealth = block:GetAttribute('MaxHealth') or 100
+									if curHealth and maxHealth and curHealth < maxHealth then
+										local prev = previousHealthCache[block]
+										if prev == nil or curHealth < prev then
+											previousHealthCache[block] = curHealth
+											handleBlockEvent(block.Name, block.Position, plr, 'damage', curHealth, maxHealth, (prev and (prev - curHealth) or nil), block)
+										end
+									end
+								end
+							end
+						end
+					end
+				end
+			end
+		end
 	end
 
 	local function renderActiveTargets()
@@ -19494,6 +19593,12 @@ run(function()
 			else
 				local worldPos = data.worldPos
 				local targetPart = data.targetPart
+				if (not targetPart or not targetPart.Parent) and data.gridPos and bedwars.BlockController and bedwars.BlockController.getStore then
+					pcall(function()
+						targetPart = bedwars.BlockController:getStore():getBlockAt(data.gridPos)
+					end)
+					data.targetPart = targetPart
+				end
 				if not targetPart or not targetPart.Parent then
 					targetPart = getPartAtPosition(worldPos)
 					data.targetPart = targetPart
@@ -19506,7 +19611,12 @@ run(function()
 					cleanupVisual(key)
 					activeTargets[key] = nil
 				else
-					local col = getColor(distBlocks)
+					local hpPct = nil
+					if data.curHealth and data.maxHealth and data.maxHealth > 0 then
+						hpPct = math.clamp(data.curHealth / data.maxHealth, 0, 1)
+					end
+
+					local col = getColor(distBlocks, hpPct)
 					local vis = renderedVisuals[key]
 					if not vis then
 						vis = {}
@@ -19614,13 +19724,22 @@ run(function()
 					if ShowBreakerInfo.Enabled then
 						local enemyHumanoid = enemy.Character and enemy.Character:FindFirstChildOfClass('Humanoid')
 						local enemyHealth = enemyHumanoid and math.floor(enemyHumanoid.Health) or 100
-						local actionLabel = (data.action == 'break' and '<font color="#FF3333">BROKEN</font>') or string.format('Hit #%d', data.hits)
-						local infoText = string.format('<b>⛏️ %s</b> [%d HP] • %s • %d blk', enemy.DisplayName or enemy.Name, enemyHealth, actionLabel, distBlocks)
+						
+						local statusText
+						if data.action == 'break' then
+							statusText = '<font color="#FF3333">BROKEN</font>'
+						elseif data.curHealth and data.maxHealth then
+							statusText = string.format('<font color="#FFAA00">%d/%d HP</font>', math.floor(data.curHealth), math.floor(data.maxHealth))
+						else
+							statusText = string.format('Hit #%d', data.hits)
+						end
+
+						local infoText = string.format('<b>⛏️ %s</b> [%d HP] • %s • %d blk', enemy.DisplayName or enemy.Name, enemyHealth, statusText, distBlocks)
 
 						if not vis.Billboard or vis.Billboard.Adornee ~= targetPart then
 							if vis.Billboard then vis.Billboard:Destroy() end
 							local bb = Instance.new('BillboardGui')
-							bb.Size = UDim2.fromOffset(170, 26)
+							bb.Size = UDim2.fromOffset(180, 26)
 							bb.StudsOffset = Vector3.new(0, (targetPart.Size.Y or 3) / 2 + 1.2, 0)
 							bb.AlwaysOnTop = true
 							bb.Adornee = targetPart
@@ -19691,6 +19810,7 @@ run(function()
 				end
 			else
 				EnemyBreakVisuals:Clean(runService.RenderStepped:Connect(function()
+					scanDamagedBlocksNearEnemies()
 					renderActiveTargets()
 				end))
 
