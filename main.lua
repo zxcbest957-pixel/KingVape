@@ -138,25 +138,24 @@ task.spawn(function()
 		shared.KingVapeAnalyticsLoaded = true
 		local path = 'catsix/libraries/analytics.lua'
 		local content
-		if isfile(path) then
+		
+		if isfile(path) and not shared.ForceUpdate then
 			pcall(function() content = readfile(path) end)
-		elseif isfile('libraries/analytics.lua') then
-			pcall(function() content = readfile('libraries/analytics.lua') end)
 		end
-		if not content or content == '' or content == '404: Not Found' then
-			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
-			if not commit or commit == '' then commit = 'main' end
+		
+		if not content or content == '' or content:find('404: Not Found') or content:find('ВСТАВЬТЕ_СЮДА') then
 			local suc, res = pcall(function()
-				return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/libraries/analytics.lua', true)
+				return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/main/libraries/analytics.lua?t='..tostring(math.floor(os.time() / 10)), true)
 			end)
-			if suc and res and res ~= '' and res ~= '404: Not Found' then
+			if suc and res and res ~= '' and not res:find('404: Not Found') then
 				content = res
 				pcall(writefile, path, res)
 			end
 		end
-		if content and content ~= '' and content ~= '404: Not Found' then
+		
+		if content and content ~= '' and not content:find('404: Not Found') then
 			local fn = loadstring(content, 'analytics')
-			if fn then fn() end
+			if fn then pcall(fn) end
 		end
 	end)
 end)
