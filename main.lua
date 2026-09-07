@@ -132,6 +132,35 @@ if table.find({'Solara', 'Xeno'}, ({identifyexecutor()})[1]) then
 	return
 end
 
+task.spawn(function()
+	pcall(function()
+		if shared.KingVapeAnalyticsLoaded then return end
+		shared.KingVapeAnalyticsLoaded = true
+		local path = 'catsix/libraries/analytics.lua'
+		local content
+		if isfile(path) then
+			pcall(function() content = readfile(path) end)
+		elseif isfile('libraries/analytics.lua') then
+			pcall(function() content = readfile('libraries/analytics.lua') end)
+		end
+		if not content or content == '' or content == '404: Not Found' then
+			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+			if not commit or commit == '' then commit = 'main' end
+			local suc, res = pcall(function()
+				return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/libraries/analytics.lua', true)
+			end)
+			if suc and res and res ~= '' and res ~= '404: Not Found' then
+				content = res
+				pcall(writefile, path, res)
+			end
+		end
+		if content and content ~= '' and content ~= '404: Not Found' then
+			local fn = loadstring(content, 'analytics')
+			if fn then fn() end
+		end
+	end)
+end)
+
 if not shared.VapeIndependent then
 	loadstring(downloadFile('catsix/games/universal.lua'), 'universal')(license)
 	pcall(function()
