@@ -4964,12 +4964,10 @@ run(function()
 			end
 		end
 
-		local allTags = collectionService:GetAllTags and collectionService:GetAllTags() or {}
-		for _, tag in allTags do
-			if tag:find('_TeamOreGenerator') then
-				for _, ent in collectionService:GetTagged(tag) do
-					addGen(ent)
-				end
+		local teamNames = {'Blue', 'Red', 'Green', 'Yellow', 'Orange', 'Cyan', 'Pink', 'Purple', 'White', 'Black'}
+		for _, teamName in teamNames do
+			for _, ent in collectionService:GetTagged(teamName .. '_TeamOreGenerator') do
+				addGen(ent)
 			end
 		end
 
