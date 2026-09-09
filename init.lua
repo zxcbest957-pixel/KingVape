@@ -33,8 +33,8 @@ local function downloadFile(path, func)
 			downloader.Text = 'Downloading '.. path
 		end
 		local suc, res = pcall(function()
-			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or '1017fdd'
-			if not commit or commit == '' or commit == 'main' then commit = '1017fdd' end
+			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+			if not commit or commit == '' then commit = 'main' end
 			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/'..select(1, path:gsub('catsix/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' or not res or res == '' then
@@ -50,13 +50,14 @@ local function downloadFile(path, func)
 	return (func or function() return content end)(path)
 end
 
+local targetCommit = 'main'
+
 local function wipeFolder(path)
 	if isfolder(path) then
 		pcall(function()
 			for _, file in listfiles(path) do
 				if isfile(file) and not file:find('color.txt') and not file:find('font.txt') and not file:find('favorites.txt') and not file:find('gui.txt') then
 					pcall(delfile, file)
-					pcall(writefile, file, '')
 				end
 			end
 		end)
@@ -70,13 +71,12 @@ for _, folder in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 
 	end
 end
 
-local targetCommit = '6ad3854'
-local savedCommit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or ''
-if savedCommit ~= targetCommit or shared.ForceUpdate or shared.vapereload then
+pcall(writefile, 'catsix/profiles/commit.txt', targetCommit)
+
+if shared.ForceUpdate or shared.vapereload then
 	wipeFolder('catsix/guis')
 	wipeFolder('catsix/games')
 	wipeFolder('catsix/libraries')
-	pcall(writefile, 'catsix/profiles/commit.txt', targetCommit)
 end
 
 local function loadAnalytics()
