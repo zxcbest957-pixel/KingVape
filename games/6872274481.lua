@@ -5256,19 +5256,329 @@ run(function()
 	bedwars.espsplit = espsplit
 	bedwars.ESPSplit = espsplit
 
-	local function onGenAdded(ent)
-		task.wait(0.2)
-		discoverGenerators()
-	end
-	local function onGenRemoved(ent)
-		task.wait(0.2)
-		discoverGenerators()
+	local Folder = Instance.new('Folder')
+	Folder.Name = 'ESPSplitFolder'
+	Folder.Parent = vape.gui
+
+	local VisualReference = {}
+	local Background
+	local Color = {}
+	local DisplayMode
+	local Scale
+	local Distance
+	local ShowTier
+	local ShowTotal
+	local HideEmpty
+	local SplitRadius
+	local MaxDistance
+	local UpdateRate
+	local AutoUpdate
+	local DebugLog
+
+	local function getBadgeIcon(resName)
+		if bedwars and bedwars.getIcon then
+			local icon = bedwars.getIcon({itemType = resName}, true)
+			if icon and icon ~= '' then
+				return icon
+			end
+		end
+		local icons = {
+			diamond = 'rbxassetid://6977794356',
+			emerald = 'rbxassetid://6977794017',
+			iron = 'rbxassetid://6977794770',
+			gold = 'rbxassetid://6977794576'
+		}
+		return icons[resName] or ''
 	end
 
-	collectionService:GetInstanceAddedSignal('Generator'):Connect(onGenAdded)
-	collectionService:GetInstanceRemovedSignal('Generator'):Connect(onGenRemoved)
+	local function getResColor(resName)
+		if resName == 'diamond' then
+			return Color3.fromRGB(110, 230, 255)
+		elseif resName == 'emerald' then
+			return Color3.fromRGB(90, 255, 130)
+		elseif resName == 'gold' then
+			return Color3.fromRGB(255, 215, 80)
+		elseif resName == 'iron' then
+			return Color3.fromRGB(225, 230, 240)
+		end
+		return Color3.fromRGB(240, 240, 240)
+	end
 
-	task.spawn(discoverGenerators)
+	local function createBillboard(gen)
+		local adornee = gen.instance:IsA('BasePart') and gen.instance or (gen.instance:IsA('Model') and (gen.instance.PrimaryPart or gen.instance:FindFirstChildWhichIsA('BasePart')))
+		if not adornee then return nil end
+
+		local bbg = Instance.new('BillboardGui')
+		bbg.Name = 'ESPSplit_' .. tostring(gen.id)
+		bbg.Adornee = adornee
+		bbg.AlwaysOnTop = true
+		bbg.ClipsDescendants = false
+		bbg.LightInfluence = 0
+		bbg.ResetOnSpawn = false
+		bbg.Size = UDim2.fromOffset(110, 46)
+		bbg.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
+		bbg.Parent = Folder
+
+		local blur = addBlur(bbg)
+		blur.Visible = Background and Background.Enabled or true
+
+		local frame = Instance.new('Frame')
+		frame.Name = 'PlateFrame'
+		frame.Size = UDim2.fromScale(1, 1)
+		frame.BackgroundColor3 = Color.Hue and Color3.fromHSV(Color.Hue, Color.Sat, Color.Value) or Color3.fromRGB(20, 20, 25)
+		frame.BackgroundTransparency = 1 - ((Background and Background.Enabled) and (Color.Opacity or 0.65) or 0)
+		frame.BorderSizePixel = 0
+		frame.Parent = bbg
+
+		local corner = Instance.new('UICorner')
+		corner.CornerRadius = UDim.new(0, 6)
+		corner.Parent = frame
+
+		local stroke = Instance.new('UIStroke')
+		stroke.Name = 'Stroke'
+		stroke.Color = Color3.fromRGB(255, 255, 255)
+		stroke.Transparency = 0.88
+		stroke.Thickness = 1
+		stroke.Parent = frame
+
+		local padding = Instance.new('UIPadding')
+		padding.PaddingTop = UDim.new(0, 4)
+		padding.PaddingBottom = UDim.new(0, 4)
+		padding.PaddingLeft = UDim.new(0, 8)
+		padding.PaddingRight = UDim.new(0, 8)
+		padding.Parent = frame
+
+		local vLayout = Instance.new('UIListLayout')
+		vLayout.Name = 'MainLayout'
+		vLayout.FillDirection = Enum.FillDirection.Vertical
+		vLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		vLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+		vLayout.Padding = UDim.new(0, 2)
+		vLayout.Parent = frame
+
+		local title = Instance.new('TextLabel')
+		title.Name = 'Title'
+		title.BackgroundTransparency = 1
+		title.Text = gen.name
+		title.RichText = true
+		title.TextColor3 = Color3.new(1, 1, 1)
+		title.Font = Enum.Font.GothamBold
+		title.TextSize = 12 * (Scale and Scale.Value or 1)
+		title.TextStrokeTransparency = 0.4
+		title.Size = UDim2.fromOffset(0, 14)
+		title.AutomaticSize = Enum.AutomaticSize.X
+		title.Parent = frame
+
+		local resContainer = Instance.new('Frame')
+		resContainer.Name = 'Resources'
+		resContainer.BackgroundTransparency = 1
+		resContainer.Size = UDim2.fromOffset(0, 22)
+		resContainer.AutomaticSize = Enum.AutomaticSize.X
+		resContainer.Parent = frame
+
+		local hLayout = Instance.new('UIListLayout')
+		hLayout.Name = 'ResLayout'
+		hLayout.FillDirection = Enum.FillDirection.Horizontal
+		hLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		hLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+		hLayout.Padding = UDim.new(0, 4)
+		hLayout.Parent = resContainer
+
+		local function adjustSize()
+			local scaleVal = (Scale and Scale.Value or 1)
+			local contentX = math.max(title.Visible and title.AbsoluteSize.X or 0, resContainer.AbsoluteSize.X)
+			local contentY = (title.Visible and (title.AbsoluteSize.Y + 4) or 0) + resContainer.AbsoluteSize.Y + 8
+			bbg.Size = UDim2.fromOffset(math.max(contentX + (16 * scaleVal), 60 * scaleVal), math.max(contentY, 28 * scaleVal))
+		end
+
+		title:GetPropertyChangedSignal('AbsoluteSize'):Connect(adjustSize)
+		resContainer:GetPropertyChangedSignal('AbsoluteSize'):Connect(adjustSize)
+
+		VisualReference[gen.instance] = bbg
+		return bbg
+	end
+
+	local function updateBillboard(gen, data)
+		local bbg = VisualReference[gen.instance]
+		if not bbg or not bbg.Parent then
+			bbg = createBillboard(gen)
+		end
+		if not bbg then return end
+
+		local currentPos = (entitylib.isAlive and entitylib.character and entitylib.character.RootPart) and entitylib.character.RootPart.Position or (gameCamera and gameCamera.CFrame.Position) or Vector3.zero
+		local dist = math.floor((currentPos - gen.position).Magnitude)
+
+		if MaxDistance and dist > MaxDistance.Value then
+			bbg.Enabled = false
+			return
+		end
+
+		local totalRes = (data and data.total) or 0
+		if HideEmpty and HideEmpty.Enabled and totalRes <= 0 then
+			bbg.Enabled = false
+			return
+		end
+
+		bbg.Enabled = true
+
+		local scaleVal = (Scale and Scale.Value or 1)
+		local mode = (DisplayMode and DisplayMode.Value) or 'Detailed'
+		local plateFrame = bbg:FindFirstChild('PlateFrame')
+		if not plateFrame then return end
+
+		local title = plateFrame:FindFirstChild('Title')
+		local resContainer = plateFrame:FindFirstChild('Resources')
+		if not title or not resContainer then return end
+
+		if mode == 'Icons' then
+			title.Visible = false
+		else
+			title.Visible = true
+			local titleText = ''
+			if Distance and Distance.Enabled then
+				titleText = `<font color="rgb(85, 255, 85)">[</font><font color="rgb(255, 255, 255)">{dist}m</font><font color="rgb(85, 255, 85)">]</font> `
+			end
+
+			if gen.type == 'diamond' then
+				titleText = titleText .. '<font color="rgb(64, 224, 255)"><b>Diamond</b></font>'
+			elseif gen.type == 'emerald' then
+				titleText = titleText .. '<font color="rgb(85, 255, 85)"><b>Emerald</b></font>'
+			elseif gen.team then
+				titleText = titleText .. `<font color="rgb(255, 205, 80)"><b>{gen.team} Gen</b></font>`
+			else
+				titleText = titleText .. `<b>{gen.name}</b>`
+			end
+
+			if ShowTier and ShowTier.Enabled and gen.level and gen.level > 0 then
+				titleText = titleText .. ` <font color="rgb(175, 175, 190)">[T{gen.level}]</font>`
+			end
+
+			if ShowTotal and ShowTotal.Enabled and totalRes > 0 then
+				titleText = titleText .. ` <font color="rgb(235, 235, 240)">({totalRes})</font>`
+			end
+
+			title.Text = titleText
+			title.TextSize = 12 * scaleVal
+		end
+
+		for _, child in resContainer:GetChildren() do
+			if child:IsA('Frame') or child:IsA('TextLabel') then
+				child:Destroy()
+			end
+		end
+
+		local hasAny = false
+		local order = {'diamond', 'emerald', 'iron', 'gold'}
+		if data and data.resources then
+			for resName, _ in data.resources do
+				if not table.find(order, resName) then
+					table.insert(order, resName)
+				end
+			end
+
+			for _, resName in order do
+				local count = data.resources[resName] or 0
+				if count > 0 then
+					hasAny = true
+					local badge = Instance.new('Frame')
+					badge.Name = resName
+					badge.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+					badge.BackgroundTransparency = (Background and Background.Enabled) and 0.45 or 0.8
+					badge.Size = UDim2.fromOffset(0, 20 * scaleVal)
+					badge.AutomaticSize = Enum.AutomaticSize.X
+
+					local badgeCorner = Instance.new('UICorner')
+					badgeCorner.CornerRadius = UDim.new(0, 4)
+					badgeCorner.Parent = badge
+
+					local badgePad = Instance.new('UIPadding')
+					badgePad.PaddingLeft = UDim.new(0, 4)
+					badgePad.PaddingRight = UDim.new(0, 6)
+					badgePad.PaddingTop = UDim.new(0, 2)
+					badgePad.PaddingBottom = UDim.new(0, 2)
+					badgePad.Parent = badge
+
+					local bLayout = Instance.new('UIListLayout')
+					bLayout.FillDirection = Enum.FillDirection.Horizontal
+					bLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+					bLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+					bLayout.Padding = UDim.new(0, 3)
+					bLayout.Parent = badge
+
+					local iconImg = Instance.new('ImageLabel')
+					iconImg.Size = UDim2.fromOffset(16 * scaleVal, 16 * scaleVal)
+					iconImg.BackgroundTransparency = 1
+					iconImg.Image = getBadgeIcon(resName)
+					iconImg.Parent = badge
+
+					local countLbl = Instance.new('TextLabel')
+					countLbl.BackgroundTransparency = 1
+					countLbl.Text = tostring(count)
+					countLbl.TextColor3 = getResColor(resName)
+					countLbl.TextSize = 12 * scaleVal
+					countLbl.Font = Enum.Font.GothamBold
+					countLbl.TextStrokeTransparency = 0.35
+					countLbl.AutomaticSize = Enum.AutomaticSize.XY
+					countLbl.Parent = badge
+
+					badge.Parent = resContainer
+				end
+			end
+		end
+
+		if not hasAny then
+			if mode == 'Icons' and Distance and Distance.Enabled then
+				local distLbl = Instance.new('TextLabel')
+				distLbl.Name = 'DistOnly'
+				distLbl.BackgroundTransparency = 1
+				distLbl.Text = `<font color="rgb(85, 255, 85)">[</font><font color="rgb(255, 255, 255)">{dist}m</font><font color="rgb(85, 255, 85)">]</font> <font color="rgb(150, 150, 160)">Empty</font>`
+				distLbl.RichText = true
+				distLbl.TextSize = 11 * scaleVal
+				distLbl.Font = Enum.Font.Gotham
+				distLbl.AutomaticSize = Enum.AutomaticSize.XY
+				distLbl.Parent = resContainer
+			else
+				local emptyLbl = Instance.new('TextLabel')
+				emptyLbl.Name = 'Empty'
+				emptyLbl.BackgroundTransparency = 1
+				emptyLbl.Text = '<font color="rgb(150, 150, 160)">Empty (0)</font>'
+				emptyLbl.RichText = true
+				emptyLbl.TextSize = 11 * scaleVal
+				emptyLbl.Font = Enum.Font.Gotham
+				emptyLbl.AutomaticSize = Enum.AutomaticSize.XY
+				emptyLbl.Parent = resContainer
+			end
+		end
+	end
+
+	local function clearAllVisuals()
+		for _, v in VisualReference do
+			if v and v.Parent then
+				v:Destroy()
+			end
+		end
+		table.clear(VisualReference)
+		if Folder then
+			Folder:ClearAllChildren()
+		end
+	end
+
+	local function refreshVisuals()
+		if not espsplit.Enabled then return end
+		local gens = espsplit.getGenerators()
+		local cacheMap = {}
+		for _, data in espsplit.Cache do
+			cacheMap[data.instance] = data
+		end
+
+		for _, gen in gens do
+			local data = cacheMap[gen.instance]
+			if not data then
+				data = analyzeGenerator(gen.instance)
+			end
+			updateBillboard(gen, data)
+		end
+	end
 
 	ESPSplitModule = vape.Categories.Render:CreateModule({
 		Name = 'ESPSplit',
@@ -5276,13 +5586,19 @@ run(function()
 			espsplit.Enabled = callback
 			if callback then
 				discoverGenerators()
+				for _, gen in espsplit.Generators do
+					createBillboard(gen)
+				end
+
 				analyzeAll()
+				refreshVisuals()
 
 				ESPSplitModule:Clean(runService.Heartbeat:Connect(function()
 					if AutoUpdate.Enabled and (tick() - espsplit.LastUpdate) >= (UpdateRate.Value or 0.5) then
-						local res = analyzeAll()
+						analyzeAll()
+						refreshVisuals()
 						if DebugLog.Enabled then
-							print(`[espsplit] Updated {#res} generators at {math.floor(tick())}`)
+							print(`[ESPSplit] Updated {#espsplit.Cache} generators at {math.floor(tick())}`)
 						end
 					end
 				end))
@@ -5293,20 +5609,113 @@ run(function()
 						task.wait(0.05)
 						if espsplit.Enabled then
 							analyzeAll()
+							refreshVisuals()
 						end
 					end))
 					ESPSplitModule:Clean(itemDropsFolder.ChildRemoved:Connect(function()
 						task.wait(0.05)
 						if espsplit.Enabled then
 							analyzeAll()
+							refreshVisuals()
 						end
 					end))
 				end
 			else
+				clearAllVisuals()
 				espsplit.Cache = {}
 			end
 		end,
-		Tooltip = 'Analyzes stacked resources on all generators (Emerald, Diamond, Team)'
+		Tooltip = 'Displays sleek plates with resource counts and icons on all generators'
+	})
+
+	DisplayMode = ESPSplitModule:CreateDropdown({
+		Name = 'Mode',
+		List = {'Detailed', 'Compact', 'Icons'},
+		Default = 'Detailed',
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Detailed - Name, Tier, Total and Resource Badges\nCompact - Streamlined single plate\nIcons - Pure KitESP/ItemPlates style resource badges'
+	})
+
+	Background = ESPSplitModule:CreateToggle({
+		Name = 'Background',
+		Default = true,
+		Function = function(callback)
+			if Color.Object then Color.Object.Visible = callback end
+			for _, bbg in VisualReference do
+				if bbg and bbg:FindFirstChild('PlateFrame') then
+					bbg.PlateFrame.BackgroundTransparency = 1 - (callback and (Color.Opacity or 0.65) or 0)
+					if bbg:FindFirstChild('Blur') then
+						bbg.Blur.Visible = callback
+					end
+				end
+			end
+		end,
+		Tooltip = 'Renders background blur plate'
+	})
+
+	Color = ESPSplitModule:CreateColorSlider({
+		Name = 'Background Color',
+		DefaultValue = 0,
+		DefaultOpacity = 0.65,
+		Function = function(hue, sat, val, opacity)
+			for _, bbg in VisualReference do
+				if bbg and bbg:FindFirstChild('PlateFrame') then
+					bbg.PlateFrame.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
+					bbg.PlateFrame.BackgroundTransparency = 1 - opacity
+				end
+			end
+		end,
+		Darker = true
+	})
+
+	Distance = ESPSplitModule:CreateToggle({
+		Name = 'Distance',
+		Default = true,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Shows distance tag to generator'
+	})
+
+	ShowTier = ESPSplitModule:CreateToggle({
+		Name = 'Show Tier',
+		Default = true,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Shows generator tier tag [T1/T2/T3]'
+	})
+
+	ShowTotal = ESPSplitModule:CreateToggle({
+		Name = 'Total Count',
+		Default = true,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Shows total stacked resources count'
+	})
+
+	HideEmpty = ESPSplitModule:CreateToggle({
+		Name = 'Hide Empty',
+		Default = false,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Hides plates for generators with 0 resources'
+	})
+
+	Scale = ESPSplitModule:CreateSlider({
+		Name = 'Scale',
+		Min = 0.5,
+		Max = 1.5,
+		Default = 1,
+		Decimal = 10,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Adjusts size of plates, text and icons'
 	})
 
 	SplitRadius = ESPSplitModule:CreateSlider({
@@ -5318,9 +5727,22 @@ run(function()
 		Function = function()
 			if espsplit.Enabled then
 				analyzeAll()
+				refreshVisuals()
 			end
 		end,
 		Tooltip = 'Radius in studs to count resources as belonging to generator'
+	})
+
+	MaxDistance = ESPSplitModule:CreateSlider({
+		Name = 'Max Distance',
+		Min = 50,
+		Max = 1000,
+		Default = 400,
+		Decimal = 1,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Max distance to render generator plates'
 	})
 
 	UpdateRate = ESPSplitModule:CreateSlider({
