@@ -1,1 +1,2 @@
-loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/536afd6/init.lua', true))()
+pcall(function() delfolder('catsix/games') delfile('catsix/profiles/commit.txt') end)
+loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/423b328/init.lua', true))()
