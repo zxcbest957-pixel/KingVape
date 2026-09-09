@@ -56,6 +56,7 @@ local function wipeFolder(path)
 			for _, file in listfiles(path) do
 				if isfile(file) and not file:find('color.txt') and not file:find('font.txt') and not file:find('favorites.txt') and not file:find('gui.txt') then
 					pcall(delfile, file)
+					pcall(writefile, file, '')
 				end
 			end
 		end)
@@ -69,10 +70,13 @@ for _, folder in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 
 	end
 end
 
-if shared.ForceUpdate or shared.vapereload then
+local targetCommit = '6ad3854'
+local savedCommit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or ''
+if savedCommit ~= targetCommit or shared.ForceUpdate or shared.vapereload then
 	wipeFolder('catsix/guis')
 	wipeFolder('catsix/games')
 	wipeFolder('catsix/libraries')
+	pcall(writefile, 'catsix/profiles/commit.txt', targetCommit)
 end
 
 local function loadAnalytics()

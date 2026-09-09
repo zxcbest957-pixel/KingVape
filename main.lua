@@ -42,8 +42,8 @@ local function downloadFile(path, func)
 	end
 	if not content or content == '' or content == '404: Not Found' then
 		local suc, res = pcall(function()
-			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or '1017fdd'
-			if not commit or commit == '' or commit == 'main' then commit = '1017fdd' end
+			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or '6ad3854'
+			if not commit or commit == '' or commit == 'main' then commit = '6ad3854' end
 			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/'..select(1, path:gsub('catsix/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' or not res or res == '' then
