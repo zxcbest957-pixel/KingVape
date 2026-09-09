@@ -4984,20 +4984,29 @@ run(function()
 		return detected
 	end
 
+	local function getItemDropPosition(drop)
+		if not drop then return nil end
+		if drop:IsA('BasePart') then
+			return drop.Position
+		elseif drop:IsA('Model') then
+			if drop.PrimaryPart then
+				return drop.PrimaryPart.Position
+			end
+			return drop:GetPivot().Position
+		end
+		return nil
+	end
+
 	local function getAllItemDrops()
 		local drops = {}
 		local itemDropsFolder = workspace:FindFirstChild('ItemDrops')
 		if itemDropsFolder then
 			for _, drop in itemDropsFolder:GetChildren() do
-				if drop:IsA('BasePart') then
-					table.insert(drops, drop)
-				end
+				table.insert(drops, drop)
 			end
 		else
 			for _, drop in collectionService:GetTagged('ItemDrop') do
-				if drop:IsA('BasePart') then
-					table.insert(drops, drop)
-				end
+				table.insert(drops, drop)
 			end
 		end
 		return drops
@@ -5030,7 +5039,8 @@ run(function()
 		end
 
 		for _, drop in drops do
-			local dropPos = drop.Position
+			local dropPos = getItemDropPosition(drop)
+			if not dropPos then continue end
 			local closestGen = nil
 			local closestDist = radius
 
@@ -5124,7 +5134,8 @@ run(function()
 		}
 
 		for _, drop in drops do
-			local dropPos = drop.Position
+			local dropPos = getItemDropPosition(drop)
+			if not dropPos then continue end
 			local xzDist = math.sqrt((dropPos.X - genPos.X)^2 + (dropPos.Z - genPos.Z)^2)
 			local yDist = math.abs(dropPos.Y - genPos.Y)
 
@@ -5200,14 +5211,14 @@ run(function()
 	local function printAnalysis()
 		local list = analyzeAll()
 		print('========================================')
-		print(`[espsplit] Resource Analysis ({#list} Generators Detected)`)
+		print(`[ESPSplit] Resource Analysis ({#list} Generators Detected)`)
 		print('========================================')
 		for i, g in list do
 			print(`#{i} ` .. formatSplit(g))
 		end
 		print('========================================')
 		if notif then
-			notif('espsplit', `Analyzed {#list} generators. Check console (F9)!`, 5, 'info')
+			notif('ESPSplit', `Analyzed {#list} generators. Check console (F9)!`, 5, 'info')
 		end
 	end
 
@@ -5243,7 +5254,9 @@ run(function()
 	})
 
 	getgenv().espsplit = espsplit
+	getgenv().ESPSplit = espsplit
 	bedwars.espsplit = espsplit
+	bedwars.ESPSplit = espsplit
 
 	local function onGenAdded(ent)
 		task.wait(0.2)
@@ -5260,7 +5273,7 @@ run(function()
 	task.spawn(discoverGenerators)
 
 	ESPSplitModule = vape.Categories.Render:CreateModule({
-		Name = 'espsplit',
+		Name = 'ESPSplit',
 		Function = function(callback)
 			espsplit.Enabled = callback
 			if callback then
