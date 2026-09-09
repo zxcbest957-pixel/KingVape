@@ -113,7 +113,7 @@ local function loadAnalytics()
 end
 loadAnalytics()
 
-writefile('catsix/profiles/commit.txt', '189659a')
+writefile('catsix/profiles/commit.txt', '536afd6')
 	if shared.updated or #listfiles('catsix/profiles') < 4 then
 		shared.VapePresetInstall = function()
 			local suc, req = pcall(request, {

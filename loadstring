@@ -1,1 +1,1 @@
-loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/1017fdd/init.lua'), 'init.lua')({})
+loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/536afd6/init.lua', true))()
