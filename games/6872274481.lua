@@ -5263,17 +5263,37 @@ run(function()
 	local VisualReference = {}
 	local Background
 	local Color = {}
-	local DisplayMode
-	local Scale
+	local Diamonds
+	local Emeralds
+	local TeamBases
+	local EnemyBasesOnly
+	local ShowNames
 	local Distance
 	local ShowTier
 	local ShowTotal
 	local HideEmpty
+	local Scale
+	local IconSize
 	local SplitRadius
 	local MaxDistance
 	local UpdateRate
 	local AutoUpdate
 	local DebugLog
+
+	local function getLocalTeam()
+		if lplr then
+			local teamAttr = lplr:GetAttribute('Team')
+			if teamAttr then return tostring(teamAttr) end
+			if lplr.Team then return tostring(lplr.Team.Name) end
+		end
+		if bedwars and bedwars.Store then
+			local s = bedwars.Store:getState()
+			if s and s.Game and s.Game.myTeam then
+				return tostring(s.Game.myTeam.id or s.Game.myTeam.name or '')
+			end
+		end
+		return nil
+	end
 
 	local function getBadgeIcon(resName)
 		if bedwars and bedwars.getIcon then
@@ -5315,7 +5335,7 @@ run(function()
 		bbg.ClipsDescendants = false
 		bbg.LightInfluence = 0
 		bbg.ResetOnSpawn = false
-		bbg.Size = UDim2.fromOffset(110, 46)
+		bbg.Size = UDim2.fromOffset(28, 16)
 		bbg.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
 		bbg.Parent = Folder
 
@@ -5331,7 +5351,7 @@ run(function()
 		frame.Parent = bbg
 
 		local corner = Instance.new('UICorner')
-		corner.CornerRadius = UDim.new(0, 6)
+		corner.CornerRadius = UDim.new(0, 4)
 		corner.Parent = frame
 
 		local stroke = Instance.new('UIStroke')
@@ -5342,10 +5362,10 @@ run(function()
 		stroke.Parent = frame
 
 		local padding = Instance.new('UIPadding')
-		padding.PaddingTop = UDim.new(0, 4)
-		padding.PaddingBottom = UDim.new(0, 4)
-		padding.PaddingLeft = UDim.new(0, 8)
-		padding.PaddingRight = UDim.new(0, 8)
+		padding.PaddingTop = UDim.new(0, 2)
+		padding.PaddingBottom = UDim.new(0, 2)
+		padding.PaddingLeft = UDim.new(0, 3)
+		padding.PaddingRight = UDim.new(0, 3)
 		padding.Parent = frame
 
 		local vLayout = Instance.new('UIListLayout')
@@ -5359,20 +5379,21 @@ run(function()
 		local title = Instance.new('TextLabel')
 		title.Name = 'Title'
 		title.BackgroundTransparency = 1
-		title.Text = gen.name
+		title.Text = ''
 		title.RichText = true
 		title.TextColor3 = Color3.new(1, 1, 1)
 		title.Font = Enum.Font.GothamBold
-		title.TextSize = 12 * (Scale and Scale.Value or 1)
+		title.TextSize = 10
 		title.TextStrokeTransparency = 0.4
-		title.Size = UDim2.fromOffset(0, 14)
+		title.Size = UDim2.fromOffset(0, 11)
 		title.AutomaticSize = Enum.AutomaticSize.X
+		title.Visible = false
 		title.Parent = frame
 
 		local resContainer = Instance.new('Frame')
 		resContainer.Name = 'Resources'
 		resContainer.BackgroundTransparency = 1
-		resContainer.Size = UDim2.fromOffset(0, 22)
+		resContainer.Size = UDim2.fromOffset(0, 16)
 		resContainer.AutomaticSize = Enum.AutomaticSize.X
 		resContainer.Parent = frame
 
@@ -5381,14 +5402,16 @@ run(function()
 		hLayout.FillDirection = Enum.FillDirection.Horizontal
 		hLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		hLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-		hLayout.Padding = UDim.new(0, 4)
+		hLayout.Padding = UDim.new(0, 3)
 		hLayout.Parent = resContainer
 
 		local function adjustSize()
-			local scaleVal = (Scale and Scale.Value or 1)
+			local scaleVal = (Scale and Scale.Value or 0.7)
 			local contentX = math.max(title.Visible and title.AbsoluteSize.X or 0, resContainer.AbsoluteSize.X)
-			local contentY = (title.Visible and (title.AbsoluteSize.Y + 4) or 0) + resContainer.AbsoluteSize.Y + 8
-			bbg.Size = UDim2.fromOffset(math.max(contentX + (16 * scaleVal), 60 * scaleVal), math.max(contentY, 28 * scaleVal))
+			local contentY = (title.Visible and (title.AbsoluteSize.Y + math.round(2 * scaleVal)) or 0) + resContainer.AbsoluteSize.Y
+			local padX = math.round(8 * scaleVal)
+			local padY = math.round(4 * scaleVal)
+			bbg.Size = UDim2.fromOffset(math.max(contentX + padX, math.round(20 * scaleVal)), math.max(contentY + padY, math.round(14 * scaleVal)))
 		end
 
 		title:GetPropertyChangedSignal('AbsoluteSize'):Connect(adjustSize)
@@ -5413,6 +5436,30 @@ run(function()
 			return
 		end
 
+		if Diamonds and not Diamonds.Enabled and (gen.type == 'diamond' or gen.name:lower():find('diamond')) then
+			bbg.Enabled = false
+			return
+		end
+
+		if Emeralds and not Emeralds.Enabled and (gen.type == 'emerald' or gen.name:lower():find('emerald')) then
+			bbg.Enabled = false
+			return
+		end
+
+		local isTeamGen = (gen.type == 'team' or gen.team ~= nil)
+		if TeamBases and not TeamBases.Enabled and isTeamGen then
+			bbg.Enabled = false
+			return
+		end
+
+		if EnemyBasesOnly and EnemyBasesOnly.Enabled and isTeamGen then
+			local myTeam = getLocalTeam()
+			if myTeam and gen.team and tostring(gen.team):lower() == myTeam:lower() then
+				bbg.Enabled = false
+				return
+			end
+		end
+
 		local totalRes = (data and data.total) or 0
 		if HideEmpty and HideEmpty.Enabled and totalRes <= 0 then
 			bbg.Enabled = false
@@ -5421,8 +5468,12 @@ run(function()
 
 		bbg.Enabled = true
 
-		local scaleVal = (Scale and Scale.Value or 1)
-		local mode = (DisplayMode and DisplayMode.Value) or 'Detailed'
+		local scaleVal = (Scale and Scale.Value or 0.7)
+		local baseIcon = (IconSize and IconSize.Value or 14)
+		local iconPx = math.max(math.round(baseIcon * scaleVal), 8)
+		local textSize = math.max(math.round(iconPx * 0.9), 8)
+		local badgeHeight = iconPx + math.max(math.round(4 * scaleVal), 2)
+
 		local plateFrame = bbg:FindFirstChild('PlateFrame')
 		if not plateFrame then return end
 
@@ -5430,36 +5481,51 @@ run(function()
 		local resContainer = plateFrame:FindFirstChild('Resources')
 		if not title or not resContainer then return end
 
-		if mode == 'Icons' then
+		local pad = plateFrame:FindFirstChildWhichIsA('UIPadding')
+		if pad then
+			pad.PaddingTop = UDim.new(0, math.max(math.round(2 * scaleVal), 1))
+			pad.PaddingBottom = UDim.new(0, math.max(math.round(2 * scaleVal), 1))
+			pad.PaddingLeft = UDim.new(0, math.max(math.round(3 * scaleVal), 2))
+			pad.PaddingRight = UDim.new(0, math.max(math.round(3 * scaleVal), 2))
+		end
+
+		local titleText = ''
+		if Distance and Distance.Enabled then
+			titleText = `<font color="rgb(85, 255, 85)">[</font><font color="rgb(255, 255, 255)">{dist}m</font><font color="rgb(85, 255, 85)">]</font>`
+		end
+
+		if ShowTier and ShowTier.Enabled and gen.level and gen.level > 0 then
+			titleText = (titleText ~= '' and (titleText .. ' ') or '') .. `<font color="rgb(175, 175, 190)">[T{gen.level}]</font>`
+		end
+
+		if ShowNames and ShowNames.Enabled then
+			local nameStr = ''
+			if gen.type == 'diamond' then
+				nameStr = '<font color="rgb(64, 224, 255)"><b>Diamond</b></font>'
+			elseif gen.type == 'emerald' then
+				nameStr = '<font color="rgb(85, 255, 85)"><b>Emerald</b></font>'
+			elseif gen.team then
+				nameStr = `<font color="rgb(255, 205, 80)"><b>{gen.team}</b></font>`
+			else
+				nameStr = `<b>{gen.name}</b>`
+			end
+			titleText = (titleText ~= '' and (titleText .. ' ' .. nameStr) or nameStr)
+		end
+
+		if ShowTotal and ShowTotal.Enabled and totalRes > 0 and (ShowNames and ShowNames.Enabled) then
+			titleText = titleText .. ` <font color="rgb(235, 235, 240)">({totalRes})</font>`
+		end
+
+		if titleText == '' then
 			title.Visible = false
+			title.Text = ''
 		else
 			title.Visible = true
-			local titleText = ''
-			if Distance and Distance.Enabled then
-				titleText = `<font color="rgb(85, 255, 85)">[</font><font color="rgb(255, 255, 255)">{dist}m</font><font color="rgb(85, 255, 85)">]</font> `
-			end
-
-			if gen.type == 'diamond' then
-				titleText = titleText .. '<font color="rgb(64, 224, 255)"><b>Diamond</b></font>'
-			elseif gen.type == 'emerald' then
-				titleText = titleText .. '<font color="rgb(85, 255, 85)"><b>Emerald</b></font>'
-			elseif gen.team then
-				titleText = titleText .. `<font color="rgb(255, 205, 80)"><b>{gen.team} Gen</b></font>`
-			else
-				titleText = titleText .. `<b>{gen.name}</b>`
-			end
-
-			if ShowTier and ShowTier.Enabled and gen.level and gen.level > 0 then
-				titleText = titleText .. ` <font color="rgb(175, 175, 190)">[T{gen.level}]</font>`
-			end
-
-			if ShowTotal and ShowTotal.Enabled and totalRes > 0 then
-				titleText = titleText .. ` <font color="rgb(235, 235, 240)">({totalRes})</font>`
-			end
-
 			title.Text = titleText
-			title.TextSize = 12 * scaleVal
+			title.TextSize = math.max(math.round(10 * scaleVal), 8)
 		end
+
+		resContainer.Size = UDim2.fromOffset(0, badgeHeight)
 
 		for _, child in resContainer:GetChildren() do
 			if child:IsA('Frame') or child:IsA('TextLabel') then
@@ -5484,29 +5550,29 @@ run(function()
 					badge.Name = resName
 					badge.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
 					badge.BackgroundTransparency = (Background and Background.Enabled) and 0.45 or 0.8
-					badge.Size = UDim2.fromOffset(0, 20 * scaleVal)
+					badge.Size = UDim2.fromOffset(0, badgeHeight)
 					badge.AutomaticSize = Enum.AutomaticSize.X
 
 					local badgeCorner = Instance.new('UICorner')
-					badgeCorner.CornerRadius = UDim.new(0, 4)
+					badgeCorner.CornerRadius = UDim.new(0, math.max(math.round(3 * scaleVal), 2))
 					badgeCorner.Parent = badge
 
 					local badgePad = Instance.new('UIPadding')
-					badgePad.PaddingLeft = UDim.new(0, 4)
-					badgePad.PaddingRight = UDim.new(0, 6)
-					badgePad.PaddingTop = UDim.new(0, 2)
-					badgePad.PaddingBottom = UDim.new(0, 2)
+					badgePad.PaddingLeft = UDim.new(0, math.max(math.round(3 * scaleVal), 1))
+					badgePad.PaddingRight = UDim.new(0, math.max(math.round(4 * scaleVal), 2))
+					badgePad.PaddingTop = UDim.new(0, math.max(math.round(1 * scaleVal), 0))
+					badgePad.PaddingBottom = UDim.new(0, math.max(math.round(1 * scaleVal), 0))
 					badgePad.Parent = badge
 
 					local bLayout = Instance.new('UIListLayout')
 					bLayout.FillDirection = Enum.FillDirection.Horizontal
 					bLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 					bLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-					bLayout.Padding = UDim.new(0, 3)
+					bLayout.Padding = UDim.new(0, math.max(math.round(2 * scaleVal), 1))
 					bLayout.Parent = badge
 
 					local iconImg = Instance.new('ImageLabel')
-					iconImg.Size = UDim2.fromOffset(16 * scaleVal, 16 * scaleVal)
+					iconImg.Size = UDim2.fromOffset(iconPx, iconPx)
 					iconImg.BackgroundTransparency = 1
 					iconImg.Image = getBadgeIcon(resName)
 					iconImg.Parent = badge
@@ -5515,7 +5581,7 @@ run(function()
 					countLbl.BackgroundTransparency = 1
 					countLbl.Text = tostring(count)
 					countLbl.TextColor3 = getResColor(resName)
-					countLbl.TextSize = 12 * scaleVal
+					countLbl.TextSize = textSize
 					countLbl.Font = Enum.Font.GothamBold
 					countLbl.TextStrokeTransparency = 0.35
 					countLbl.AutomaticSize = Enum.AutomaticSize.XY
@@ -5527,28 +5593,22 @@ run(function()
 		end
 
 		if not hasAny then
-			if mode == 'Icons' and Distance and Distance.Enabled then
-				local distLbl = Instance.new('TextLabel')
-				distLbl.Name = 'DistOnly'
-				distLbl.BackgroundTransparency = 1
-				distLbl.Text = `<font color="rgb(85, 255, 85)">[</font><font color="rgb(255, 255, 255)">{dist}m</font><font color="rgb(85, 255, 85)">]</font> <font color="rgb(150, 150, 160)">Empty</font>`
-				distLbl.RichText = true
-				distLbl.TextSize = 11 * scaleVal
-				distLbl.Font = Enum.Font.Gotham
-				distLbl.AutomaticSize = Enum.AutomaticSize.XY
-				distLbl.Parent = resContainer
-			else
-				local emptyLbl = Instance.new('TextLabel')
-				emptyLbl.Name = 'Empty'
-				emptyLbl.BackgroundTransparency = 1
-				emptyLbl.Text = '<font color="rgb(150, 150, 160)">Empty (0)</font>'
-				emptyLbl.RichText = true
-				emptyLbl.TextSize = 11 * scaleVal
-				emptyLbl.Font = Enum.Font.Gotham
-				emptyLbl.AutomaticSize = Enum.AutomaticSize.XY
-				emptyLbl.Parent = resContainer
-			end
+			local emptyLbl = Instance.new('TextLabel')
+			emptyLbl.Name = 'Empty'
+			emptyLbl.BackgroundTransparency = 1
+			emptyLbl.Text = '<font color="rgb(150, 150, 160)">0</font>'
+			emptyLbl.RichText = true
+			emptyLbl.TextSize = textSize
+			emptyLbl.Font = Enum.Font.Gotham
+			emptyLbl.AutomaticSize = Enum.AutomaticSize.XY
+			emptyLbl.Parent = resContainer
 		end
+
+		local contentX = math.max(title.Visible and title.AbsoluteSize.X or 0, resContainer.AbsoluteSize.X)
+		local contentY = (title.Visible and (title.AbsoluteSize.Y + math.round(2 * scaleVal)) or 0) + resContainer.AbsoluteSize.Y
+		local padX = math.round(8 * scaleVal)
+		local padY = math.round(4 * scaleVal)
+		bbg.Size = UDim2.fromOffset(math.max(contentX + padX, math.round(20 * scaleVal)), math.max(contentY + padY, math.round(14 * scaleVal)))
 	end
 
 	local function clearAllVisuals()
@@ -5628,14 +5688,100 @@ run(function()
 		Tooltip = 'Displays sleek plates with resource counts and icons on all generators'
 	})
 
-	DisplayMode = ESPSplitModule:CreateDropdown({
-		Name = 'Mode',
-		List = {'Detailed', 'Compact', 'Icons'},
-		Default = 'Detailed',
+	Diamonds = ESPSplitModule:CreateToggle({
+		Name = 'Diamonds',
+		Default = true,
 		Function = function()
 			refreshVisuals()
 		end,
-		Tooltip = 'Detailed - Name, Tier, Total and Resource Badges\nCompact - Streamlined single plate\nIcons - Pure KitESP/ItemPlates style resource badges'
+		Tooltip = 'Displays Diamond generators'
+	})
+
+	Emeralds = ESPSplitModule:CreateToggle({
+		Name = 'Emeralds',
+		Default = true,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Displays Emerald generators'
+	})
+
+	TeamBases = ESPSplitModule:CreateToggle({
+		Name = 'Team Bases',
+		Default = true,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Displays Team Base generators (Iron/Gold)'
+	})
+
+	EnemyBasesOnly = ESPSplitModule:CreateToggle({
+		Name = 'Enemy Bases Only',
+		Default = false,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Hides your own base generator and only shows enemy bases'
+	})
+
+	ShowNames = ESPSplitModule:CreateToggle({
+		Name = 'Show Names',
+		Default = false,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Shows generator text name (Blue Team, Diamond, etc.)'
+	})
+
+	Scale = ESPSplitModule:CreateSlider({
+		Name = 'Scale',
+		Min = 0.3,
+		Max = 1.5,
+		Default = 0.7,
+		Decimal = 10,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Overall size scaling of plates and icons'
+	})
+
+	IconSize = ESPSplitModule:CreateSlider({
+		Name = 'Icon Size',
+		Min = 8,
+		Max = 28,
+		Default = 14,
+		Decimal = 1,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Custom resource icon size in pixels'
+	})
+
+	Distance = ESPSplitModule:CreateToggle({
+		Name = 'Distance',
+		Default = false,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Shows distance tag [XXm] to generator'
+	})
+
+	ShowTier = ESPSplitModule:CreateToggle({
+		Name = 'Show Tier',
+		Default = false,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Shows generator tier tag [T1/T2/T3]'
+	})
+
+	HideEmpty = ESPSplitModule:CreateToggle({
+		Name = 'Hide Empty',
+		Default = false,
+		Function = function()
+			refreshVisuals()
+		end,
+		Tooltip = 'Hides plates for generators with 0 resources'
 	})
 
 	Background = ESPSplitModule:CreateToggle({
@@ -5668,54 +5814,6 @@ run(function()
 			end
 		end,
 		Darker = true
-	})
-
-	Distance = ESPSplitModule:CreateToggle({
-		Name = 'Distance',
-		Default = true,
-		Function = function()
-			refreshVisuals()
-		end,
-		Tooltip = 'Shows distance tag to generator'
-	})
-
-	ShowTier = ESPSplitModule:CreateToggle({
-		Name = 'Show Tier',
-		Default = true,
-		Function = function()
-			refreshVisuals()
-		end,
-		Tooltip = 'Shows generator tier tag [T1/T2/T3]'
-	})
-
-	ShowTotal = ESPSplitModule:CreateToggle({
-		Name = 'Total Count',
-		Default = true,
-		Function = function()
-			refreshVisuals()
-		end,
-		Tooltip = 'Shows total stacked resources count'
-	})
-
-	HideEmpty = ESPSplitModule:CreateToggle({
-		Name = 'Hide Empty',
-		Default = false,
-		Function = function()
-			refreshVisuals()
-		end,
-		Tooltip = 'Hides plates for generators with 0 resources'
-	})
-
-	Scale = ESPSplitModule:CreateSlider({
-		Name = 'Scale',
-		Min = 0.5,
-		Max = 1.5,
-		Default = 1,
-		Decimal = 10,
-		Function = function()
-			refreshVisuals()
-		end,
-		Tooltip = 'Adjusts size of plates, text and icons'
 	})
 
 	SplitRadius = ESPSplitModule:CreateSlider({
