@@ -4855,6 +4855,487 @@ run(function()
 end)
 
 run(function()
+	local ESPSplitModule
+	local SplitRadius
+	local UpdateRate
+	local DebugLog
+	local AutoUpdate
+
+	local espsplit = {
+		Cache = {},
+		Generators = {},
+		LastUpdate = 0,
+		Enabled = false
+	}
+
+	local function getGenPosition(ent)
+		if not ent then return nil end
+		if ent:IsA('BasePart') then
+			return ent.Position
+		elseif ent:IsA('Model') then
+			if ent.PrimaryPart then
+				return ent.PrimaryPart.Position
+			end
+			local pivot = ent:GetPivot()
+			return pivot.Position
+		end
+		return nil
+	end
+
+	local function getGenInfo(ent)
+		local pos = getGenPosition(ent)
+		if not pos then return nil end
+
+		local app = ent:FindFirstChild('RoactTree') and ent.RoactTree:FindFirstChild('TeamOreGeneratorApp')
+		local titleObj = app and (app:FindFirstChild('GlobalOreGenerator') or app:FindFirstChild('TeamGenMain'))
+		if titleObj then
+			titleObj = titleObj:FindFirstChild('Title')
+		end
+
+		local name = ''
+		local genType = 'team'
+		local team = ent:GetAttribute('Team')
+
+		if titleObj and titleObj.Text and #titleObj.Text > 0 then
+			name = titleObj.Text
+			local lowerName = name:lower()
+			if lowerName:find('diamond') then
+				genType = 'diamond'
+			elseif lowerName:find('emerald') then
+				genType = 'emerald'
+			else
+				genType = 'team'
+			end
+		else
+			local ore = ent:GetAttribute('Id')
+			if ore then
+				local rawOre = ore:sub(0, #ore - 2)
+				genType = rawOre:lower()
+				name = (rawOre:sub(1, 1):upper() .. rawOre:sub(2):lower()) .. ' Generator'
+			else
+				local entName = ent.Name
+				if entName:lower():find('diamond') then
+					genType = 'diamond'
+					name = 'Diamond Generator'
+				elseif entName:lower():find('emerald') then
+					genType = 'emerald'
+					name = 'Emerald Generator'
+				else
+					genType = 'team'
+					name = team and (team .. ' Team Generator') or 'Team Generator'
+				end
+			end
+		end
+
+		local level = ent:GetAttribute('GeneratorLevel') or ent:GetAttribute('Tier') or 1
+		local id = ent:GetAttribute('Id') or (name .. '_' .. tostring(math.floor(pos.X)) .. '_' .. tostring(math.floor(pos.Z)))
+
+		return {
+			instance = ent,
+			id = id,
+			name = name,
+			type = genType,
+			team = team,
+			level = level,
+			position = pos
+		}
+	end
+
+	local function discoverGenerators()
+		local detected = {}
+		local checked = {}
+
+		local function addGen(ent)
+			if not ent or checked[ent] then return end
+			checked[ent] = true
+			local info = getGenInfo(ent)
+			if info then
+				table.insert(detected, info)
+			end
+		end
+
+		for _, ent in collectionService:GetTagged('Generator') do
+			addGen(ent)
+		end
+
+		for _, tag in {'diamond_OreGenerator', 'emerald_OreGenerator'} do
+			for _, ent in collectionService:GetTagged(tag) do
+				addGen(ent)
+			end
+		end
+
+		local allTags = collectionService:GetAllTags and collectionService:GetAllTags() or {}
+		for _, tag in allTags do
+			if tag:find('_TeamOreGenerator') then
+				for _, ent in collectionService:GetTagged(tag) do
+					addGen(ent)
+				end
+			end
+		end
+
+		local oreGensFolder = workspace:FindFirstChild('OreGenerators') or (workspace:FindFirstChild('Map') and workspace.Map:FindFirstChild('OreGenerators'))
+		if oreGensFolder then
+			for _, child in oreGensFolder:GetChildren() do
+				addGen(child)
+			end
+		end
+
+		espsplit.Generators = detected
+		return detected
+	end
+
+	local function getAllItemDrops()
+		local drops = {}
+		local itemDropsFolder = workspace:FindFirstChild('ItemDrops')
+		if itemDropsFolder then
+			for _, drop in itemDropsFolder:GetChildren() do
+				if drop:IsA('BasePart') then
+					table.insert(drops, drop)
+				end
+			end
+		else
+			for _, drop in collectionService:GetTagged('ItemDrop') do
+				if drop:IsA('BasePart') then
+					table.insert(drops, drop)
+				end
+			end
+		end
+		return drops
+	end
+
+	local function analyzeAll(customRadius)
+		local radius = customRadius or (SplitRadius and SplitRadius.Value) or 15
+		local generators = #espsplit.Generators > 0 and espsplit.Generators or discoverGenerators()
+		local drops = getAllItemDrops()
+
+		local results = {}
+		for _, gen in generators do
+			results[gen.instance] = {
+				instance = gen.instance,
+				id = gen.id,
+				name = gen.name,
+				type = gen.type,
+				team = gen.team,
+				level = gen.level,
+				position = gen.position,
+				total = 0,
+				resources = {
+					iron = 0,
+					gold = 0,
+					diamond = 0,
+					emerald = 0
+				},
+				items = {}
+			}
+		end
+
+		for _, drop in drops do
+			local dropPos = drop.Position
+			local closestGen = nil
+			local closestDist = radius
+
+			for _, gen in generators do
+				local genPos = gen.position
+				local xzDist = math.sqrt((dropPos.X - genPos.X)^2 + (dropPos.Z - genPos.Z)^2)
+				local yDist = math.abs(dropPos.Y - genPos.Y)
+
+				if xzDist <= radius and yDist <= 14 then
+					if xzDist < closestDist then
+						closestDist = xzDist
+						closestGen = gen
+					end
+				end
+			end
+
+			if closestGen and results[closestGen.instance] then
+				local genData = results[closestGen.instance]
+				local rawName = drop.Name:lower()
+				local amount = tonumber(drop:GetAttribute('Amount')) or 1
+
+				genData.resources[rawName] = (genData.resources[rawName] or 0) + amount
+				genData.total = genData.total + amount
+				table.insert(genData.items, {
+					instance = drop,
+					name = rawName,
+					amount = amount,
+					position = dropPos
+				})
+			end
+		end
+
+		local list = {}
+		for _, data in results do
+			table.insert(list, data)
+		end
+
+		table.sort(list, function(a, b)
+			if a.type == b.type then
+				return a.name < b.name
+			end
+			local order = {emerald = 1, diamond = 2, team = 3}
+			return (order[a.type] or 4) < (order[b.type] or 4)
+		end)
+
+		espsplit.Cache = list
+		espsplit.LastUpdate = tick()
+		if vapeEvents and vapeEvents.SplitUpdate then
+			vapeEvents.SplitUpdate:Fire(list)
+		end
+
+		return list
+	end
+
+	local function analyzeGenerator(genInstanceOrId, customRadius)
+		local radius = customRadius or (SplitRadius and SplitRadius.Value) or 15
+		local genInfo = nil
+
+		if typeof(genInstanceOrId) == 'Instance' then
+			genInfo = getGenInfo(genInstanceOrId)
+		else
+			for _, g in espsplit.Generators do
+				if g.id == genInstanceOrId or g.name == genInstanceOrId then
+					genInfo = g
+					break
+				end
+			end
+		end
+
+		if not genInfo then return nil end
+
+		local genPos = genInfo.position
+		local drops = getAllItemDrops()
+
+		local result = {
+			instance = genInfo.instance,
+			id = genInfo.id,
+			name = genInfo.name,
+			type = genInfo.type,
+			team = genInfo.team,
+			level = genInfo.level,
+			position = genPos,
+			total = 0,
+			resources = {
+				iron = 0,
+				gold = 0,
+				diamond = 0,
+				emerald = 0
+			},
+			items = {}
+		}
+
+		for _, drop in drops do
+			local dropPos = drop.Position
+			local xzDist = math.sqrt((dropPos.X - genPos.X)^2 + (dropPos.Z - genPos.Z)^2)
+			local yDist = math.abs(dropPos.Y - genPos.Y)
+
+			if xzDist <= radius and yDist <= 14 then
+				local rawName = drop.Name:lower()
+				local amount = tonumber(drop:GetAttribute('Amount')) or 1
+
+				result.resources[rawName] = (result.resources[rawName] or 0) + amount
+				result.total = result.total + amount
+				table.insert(result.items, {
+					instance = drop,
+					name = rawName,
+					amount = amount,
+					position = dropPos
+				})
+			end
+		end
+
+		return result
+	end
+
+	local function formatSplit(genData)
+		if not genData then return 'N/A' end
+		local parts = {}
+		if (genData.resources.emerald or 0) > 0 then
+			table.insert(parts, `🟢 x{genData.resources.emerald}`)
+		end
+		if (genData.resources.diamond or 0) > 0 then
+			table.insert(parts, `💎 x{genData.resources.diamond}`)
+		end
+		if (genData.resources.gold or 0) > 0 then
+			table.insert(parts, `🟡 x{genData.resources.gold}`)
+		end
+		if (genData.resources.iron or 0) > 0 then
+			table.insert(parts, `⚪ x{genData.resources.iron}`)
+		end
+		for resName, resCount in genData.resources do
+			if not table.find({'emerald', 'diamond', 'gold', 'iron'}, resName) and resCount > 0 then
+				table.insert(parts, `{resName}: {resCount}`)
+			end
+		end
+
+		local content = #parts > 0 and table.concat(parts, ' | ') or 'Empty (0)'
+		return `{genData.name} [T{genData.level}]: {content}`
+	end
+
+	local function getSummary()
+		local list = #espsplit.Cache > 0 and espsplit.Cache or analyzeAll()
+		local summary = {
+			totalGenerators = #list,
+			totalEmeralds = 0,
+			totalDiamonds = 0,
+			totalIron = 0,
+			totalGold = 0,
+			generators = {}
+		}
+
+		for _, g in list do
+			summary.totalEmeralds = summary.totalEmeralds + (g.resources.emerald or 0)
+			summary.totalDiamonds = summary.totalDiamonds + (g.resources.diamond or 0)
+			summary.totalIron = summary.totalIron + (g.resources.iron or 0)
+			summary.totalGold = summary.totalGold + (g.resources.gold or 0)
+			table.insert(summary.generators, {
+				name = g.name,
+				type = g.type,
+				total = g.total,
+				formatted = formatSplit(g)
+			})
+		end
+		return summary
+	end
+
+	local function printAnalysis()
+		local list = analyzeAll()
+		print('========================================')
+		print(`[espsplit] Resource Analysis ({#list} Generators Detected)`)
+		print('========================================')
+		for i, g in list do
+			print(`#{i} ` .. formatSplit(g))
+		end
+		print('========================================')
+		if notif then
+			notif('espsplit', `Analyzed {#list} generators. Check console (F9)!`, 5, 'info')
+		end
+	end
+
+	local function getNearestGenerator(pos)
+		local generators = #espsplit.Generators > 0 and espsplit.Generators or discoverGenerators()
+		local nearest, nearestDist = nil, math.huge
+		for _, gen in generators do
+			local dist = (gen.position - pos).Magnitude
+			if dist < nearestDist then
+				nearestDist = dist
+				nearest = gen
+			end
+		end
+		return nearest, nearestDist
+	end
+
+	espsplit.discoverGenerators = discoverGenerators
+	espsplit.getGenerators = function()
+		return #espsplit.Generators > 0 and espsplit.Generators or discoverGenerators()
+	end
+	espsplit.getAllItemDrops = getAllItemDrops
+	espsplit.analyzeAll = analyzeAll
+	espsplit.analyzeGenerator = analyzeGenerator
+	espsplit.formatSplit = formatSplit
+	espsplit.getSummary = getSummary
+	espsplit.printAnalysis = printAnalysis
+	espsplit.getNearestGenerator = getNearestGenerator
+
+	setmetatable(espsplit, {
+		__call = function(_, radius)
+			return analyzeAll(radius)
+		end
+	})
+
+	getgenv().espsplit = espsplit
+	bedwars.espsplit = espsplit
+
+	local function onGenAdded(ent)
+		task.wait(0.2)
+		discoverGenerators()
+	end
+	local function onGenRemoved(ent)
+		task.wait(0.2)
+		discoverGenerators()
+	end
+
+	collectionService:GetInstanceAddedSignal('Generator'):Connect(onGenAdded)
+	collectionService:GetInstanceRemovedSignal('Generator'):Connect(onGenRemoved)
+
+	task.spawn(discoverGenerators)
+
+	ESPSplitModule = vape.Categories.Render:CreateModule({
+		Name = 'espsplit',
+		Function = function(callback)
+			espsplit.Enabled = callback
+			if callback then
+				discoverGenerators()
+				analyzeAll()
+
+				ESPSplitModule:Clean(runService.Heartbeat:Connect(function()
+					if AutoUpdate.Enabled and (tick() - espsplit.LastUpdate) >= (UpdateRate.Value or 0.5) then
+						local res = analyzeAll()
+						if DebugLog.Enabled then
+							print(`[espsplit] Updated {#res} generators at {math.floor(tick())}`)
+						end
+					end
+				end))
+
+				local itemDropsFolder = workspace:FindFirstChild('ItemDrops')
+				if itemDropsFolder then
+					ESPSplitModule:Clean(itemDropsFolder.ChildAdded:Connect(function()
+						task.wait(0.05)
+						if espsplit.Enabled then
+							analyzeAll()
+						end
+					end))
+					ESPSplitModule:Clean(itemDropsFolder.ChildRemoved:Connect(function()
+						task.wait(0.05)
+						if espsplit.Enabled then
+							analyzeAll()
+						end
+					end))
+				end
+			else
+				espsplit.Cache = {}
+			end
+		end,
+		Tooltip = 'Analyzes stacked resources on all generators (Emerald, Diamond, Team)'
+	})
+
+	SplitRadius = ESPSplitModule:CreateSlider({
+		Name = 'Split Radius',
+		Min = 5,
+		Max = 30,
+		Default = 15,
+		Decimal = 1,
+		Function = function()
+			if espsplit.Enabled then
+				analyzeAll()
+			end
+		end,
+		Tooltip = 'Radius in studs to count resources as belonging to generator'
+	})
+
+	UpdateRate = ESPSplitModule:CreateSlider({
+		Name = 'Update Rate',
+		Min = 0.1,
+		Max = 2,
+		Default = 0.5,
+		Decimal = 10,
+		Tooltip = 'Analysis refresh rate in seconds'
+	})
+
+	AutoUpdate = ESPSplitModule:CreateToggle({
+		Name = 'Auto Update',
+		Default = true,
+		Tooltip = 'Continuously recalculates resources in background'
+	})
+
+	DebugLog = ESPSplitModule:CreateToggle({
+		Name = 'Debug Log',
+		Default = false,
+		Tooltip = 'Outputs updates to console'
+	})
+end)
+
+
+run(function()
 	local Headless
 	local Hats
 	
