@@ -33,7 +33,9 @@ local function downloadFile(path, func)
 			downloader.Text = 'Downloading '.. path
 		end
 		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/main/'..select(1, path:gsub('catsix/', '')), true)
+			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or '189659a'
+			if not commit or commit == '' or commit == 'main' then commit = '189659a' end
+			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/'..select(1, path:gsub('catsix/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' or not res or res == '' then
 			error(res or 'Failed to download '..tostring(path))
@@ -111,7 +113,7 @@ local function loadAnalytics()
 end
 loadAnalytics()
 
-writefile('catsix/profiles/commit.txt', 'main')
+writefile('catsix/profiles/commit.txt', '189659a')
 	if shared.updated or #listfiles('catsix/profiles') < 4 then
 		shared.VapePresetInstall = function()
 			local suc, req = pcall(request, {
