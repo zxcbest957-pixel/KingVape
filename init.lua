@@ -71,7 +71,23 @@ for _, folder in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 
 	end
 end
 
+local currentCommit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or ''
+if currentCommit ~= targetCommit then
+	wipeFolder('catsix/guis')
+	wipeFolder('catsix/games')
+	wipeFolder('catsix/libraries')
+end
 pcall(writefile, 'catsix/profiles/commit.txt', targetCommit)
+
+pcall(function()
+	local bedwarsGame = 'catsix/games/6872274481.lua'
+	if isfile(bedwarsGame) then
+		local content = readfile(bedwarsGame)
+		if content and not content:find('Enemy Bases Only') then
+			pcall(delfile, bedwarsGame)
+		end
+	end
+end)
 
 if shared.ForceUpdate or shared.vapereload then
 	wipeFolder('catsix/guis')
@@ -117,7 +133,6 @@ local function loadAnalytics()
 end
 loadAnalytics()
 
-writefile('catsix/profiles/commit.txt', '536afd6')
 	if shared.updated or #listfiles('catsix/profiles') < 4 then
 		shared.VapePresetInstall = function()
 			local suc, req = pcall(request, {

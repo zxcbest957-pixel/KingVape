@@ -15,7 +15,9 @@ end
 local function downloadFile(path, func)
 	if not isfile(path) then
 		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..readfile('catsix/profiles/commit.txt')..'/'..select(1, path:gsub('catsix/', '')), true)
+			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+			if not commit or commit == '' then commit = 'main' end
+			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/'..select(1, path:gsub('catsix/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
 			error(res)
@@ -30,11 +32,20 @@ end
 
 vape.Place = 6872274481
 if isfile('catsix/games/'..vape.Place..'.lua') then
+	local content = readfile('catsix/games/'..vape.Place..'.lua')
+	if content and not content:find('Enemy Bases Only') then
+		pcall(delfile, 'catsix/games/'..vape.Place..'.lua')
+	end
+end
+
+if isfile('catsix/games/'..vape.Place..'.lua') then
 	loadstring(readfile('catsix/games/'..vape.Place..'.lua'), 'bedwars')()
 else
 	if not shared.VapeDeveloper then
 		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..readfile('catsix/profiles/commit.txt')..'/games/'..vape.Place..'.lua', true)
+			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+			if not commit or commit == '' then commit = 'main' end
+			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/games/'..vape.Place..'.lua', true)
 		end)
 		if suc and res ~= '404: Not Found' then
 			loadstring(downloadFile('catsix/games/'..vape.Place..'.lua'), 'bedwars')()
